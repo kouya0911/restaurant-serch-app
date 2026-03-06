@@ -18,10 +18,28 @@
 //   ],
 // }
 
+// export const config = {
+//   matcher: [
+//     /*
+//      * 以下のパスには Middleware を適用しない設定にします
+//      */
+//     '/((?!_next/static|_next/image|favicon.ico|auth|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+//   ],
+// }
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { updateSession } from '@/utils/supabase/middleware'
+
+// 関数を "default" としてエクスポートするのが最新のルールです
+export default async function middleware(request: NextRequest) {
+  return await updateSession(request)
+}
+
 export const config = {
   matcher: [
     /*
-     * 以下のパスには Middleware を適用しない設定にします
+     * /auth や /login を Middleware のチェック対象から外します
      */
     '/((?!_next/static|_next/image|favicon.ico|auth|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
