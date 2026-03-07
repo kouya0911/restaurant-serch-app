@@ -7,13 +7,13 @@ import {
 } from "@/components/ui/carousel"
 
 interface CarouselContainerProps {
-    children: React.ReactNode[];
-    slideToShow: number;
+  children: React.ReactNode[];
+  slideToShow: number;
 }
 
-export default function CarouselContainer({ 
-    children,
-    slideToShow
+export default function CarouselContainer({
+  children,
+  slideToShow
 }: CarouselContainerProps) {
   return (
     <Carousel
@@ -22,17 +22,22 @@ export default function CarouselContainer({
       }}
       className="w-full"
     >
-      <CarouselContent>
+      <CarouselContent className="-ml-2 md:-ml-4">
         {children.map((child, index) => (
-          <CarouselItem key={index} style={{ flexBasis: `${100 / slideToShow}%` }}>
+          <CarouselItem
+            key={index}
+            className="pl-2 md:pl-4 basis-[80%] sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+          >
             <div className="p-1">
-                {child}
+              {child}
             </div>
           </CarouselItem>
         ))}
       </CarouselContent>
-      <CarouselPrevious />
-      <CarouselNext />
+      <div className="hidden md:block">
+        <CarouselPrevious />
+        <CarouselNext />
+      </div>
     </Carousel>
   )
 }

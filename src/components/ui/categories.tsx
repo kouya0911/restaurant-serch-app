@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import CarouselContainer from "./carousel-container";
-import Category from "./category"; 
+import Category from "./category";
 
 export interface CategoryType {
   categoryName: string,
@@ -11,7 +11,7 @@ export interface CategoryType {
 }
 
 export default function Categories() {
-  const categories:CategoryType[] = [
+  const categories: CategoryType[] = [
     {
       categoryName: "ファーストフード",
       type: "fast_food_restaurant",
@@ -80,7 +80,7 @@ export default function Categories() {
   const searchRestaurantsOfCategory = (category: string) => {
     const params = new URLSearchParams(searchParams);
 
-    if(currentCategory === category) {
+    if (currentCategory === category) {
       router.replace("/");
     } else {
       params.set("category", category);
@@ -89,14 +89,18 @@ export default function Categories() {
   }
 
   return (
-    <CarouselContainer slideToShow={10}>
-      {categories.map((category) => (
-        <Category 
-        category={category}
-        onClick={searchRestaurantsOfCategory} 
-        select={category.type === currentCategory}
-        />
-      ))}
-    </CarouselContainer>
+    <div className="w-full overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 pt-2 -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="flex gap-4 md:gap-6 w-max">
+        {categories.map((category) => (
+          <div key={category.type} className="snap-start shrink-0 w-[72px] md:w-[90px]">
+            <Category
+              category={category}
+              onClick={searchRestaurantsOfCategory}
+              select={category.type === currentCategory}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

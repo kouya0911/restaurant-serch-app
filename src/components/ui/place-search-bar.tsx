@@ -1,11 +1,11 @@
 "use client"
 
 import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandList,
-  CommandItem
+    Command,
+    CommandEmpty,
+    CommandInput,
+    CommandList,
+    CommandItem
 } from "@/components/ui/command"
 import { RestaurantSuggestion } from "@/types";
 import { LoaderCircle, MapPin, Search } from "lucide-react";
@@ -20,7 +20,7 @@ interface PlaceSearchBarProps {
     Ing: number
 }
 
-export default function PlaceSearchBar({lat, Ing}:PlaceSearchBarProps) {
+export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
     const [open, setOpen] = useState(false);
     const [inputText, setInputText] = useState("");
     const [sessionToken, setSessionToken] = useState(uuidv4());
@@ -30,25 +30,26 @@ export default function PlaceSearchBar({lat, Ing}:PlaceSearchBarProps) {
     const clickedOnItem = useRef(false);
     const router = useRouter();
 
-const fetchSuggestions = useDebouncedCallback(
-    async () => {
-    if(!inputText.trim()) {
-        setSuggestions([])
-        return;
-    }
-    try {
-        const response = await fetch(`/api/restaurant/autocomplete?input=${inputText}&sessionToken=${sessionToken}&lat=${lat}&Ing=${Ing}`);
-        const data:RestaurantSuggestion[] = await response.json()
-        setSuggestions(data)
-    } catch (error) {
-        console.error(error);
-    } finally {
-        setIsLoading(false);
-    }
-}, 500);
+    const fetchSuggestions = useDebouncedCallback(
+        async () => {
+            if (!inputText.trim()) {
+                setSuggestions([])
+                return;
+            }
+            try {
+                const response = await fetch(`/api/restaurant/autocomplete?input=${inputText}&sessionToken=${sessionToken}&lat=${lat}&Ing=${Ing}`);
+                const data: RestaurantSuggestion[] = await response.json()
+                setSuggestions(data)
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 500);
 
-    useEffect(()=> {
-        if(!inputText.trim()) {""
+    useEffect(() => {
+        if (!inputText.trim()) {
+            ""
             setOpen(false);
             setSuggestions([])
             return;
@@ -59,7 +60,7 @@ const fetchSuggestions = useDebouncedCallback(
     }, [inputText]);
 
     const handleBlur = () => {
-        if(clickedOnItem.current) {
+        if (clickedOnItem.current) {
             clickedOnItem.current = false;
             return;
         }
@@ -67,13 +68,13 @@ const fetchSuggestions = useDebouncedCallback(
     }
 
     const handleFocus = () => {
-        if(inputText){
+        if (inputText) {
             setOpen(true)
         }
     }
 
-    const handleSelectSuggestion = (suggestion:RestaurantSuggestion) => {
-        if(suggestion.type === "placePrediction") {
+    const handleSelectSuggestion = (suggestion: RestaurantSuggestion) => {
+        if (suggestion.type === "placePrediction") {
             router.push(
                 `/restaurant/${suggestion.placeId}?sesstionToken=${sessionToken}`
             );
@@ -96,44 +97,45 @@ const fetchSuggestions = useDebouncedCallback(
         }
     }
 
-  return (
-    <Command onKeyDown={handleKeyDown} className="overflow-visible bg-muted" shouldFilter={false}>
-        <CommandInput 
-        value={inputText}
-        placeholder="Type a command or search..."
-        onValueChange={(text) => {
-            if(!open) {
-                setOpen(true);
-            }
-            setInputText(text)
-            
-        }}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        />
-        {open && (
-            <div className="relative">
-            <CommandList className="absolute bg-background w-full shadow-md rounded-lg">
-                <div className="flex items-center justify-center">
-                    <CommandEmpty>
-                        {isLoading ? <LoaderCircle className="animate-spin" /> : "レストランが見つかりません。"}
-                    </CommandEmpty>
+    return (
+        <Command onKeyDown={handleKeyDown} className="overflow-visible bg-muted w-full" shouldFilter={false}>
+            <CommandInput
+                value={inputText}
+                placeholder="レストランを検索..."
+                className="w-full"
+                onValueChange={(text) => {
+                    if (!open) {
+                        setOpen(true);
+                    }
+                    setInputText(text)
+
+                }}
+                onBlur={handleBlur}
+                onFocus={handleFocus}
+            />
+            {open && (
+                <div className="relative z-50">
+                    <CommandList className="absolute bg-background w-full shadow-md rounded-lg">
+                        <div className="flex items-center justify-center">
+                            <CommandEmpty>
+                                {isLoading ? <LoaderCircle className="animate-spin" /> : "レストランが見つかりません。"}
+                            </CommandEmpty>
+                        </div>
+                        {suggestions.map((suggestion, index) => (
+                            <CommandItem
+                                key={suggestion.placeId ?? index}
+                                value={suggestion.placeName}
+                                className="p-5"
+                                onSelect={() => handleSelectSuggestion(suggestion)}
+                                onMouseDown={() => clickedOnItem.current = true}
+                            >
+                                {suggestion.type === "queryPrediction" ? <Search /> : <MapPin />}
+                                <p>{suggestion.placeName}</p>
+                            </CommandItem>
+                        ))}
+                    </CommandList>
                 </div>
-                {suggestions.map((suggestion, index) => (
-                    <CommandItem 
-                    key={suggestion.placeId ?? index} 
-                    value={suggestion.placeName}
-                    className="p-5"
-                    onSelect={() => handleSelectSuggestion(suggestion)}
-                    onMouseDown={() => clickedOnItem.current = true}
-                    >
-                        {suggestion.type === "queryPrediction" ? <Search /> : <MapPin />}
-                        <p>{suggestion.placeName}</p>
-                    </CommandItem>
-                ))}
-            </CommandList>
-        </div>
-        )}
-    </Command>
-  )
+            )}
+        </Command>
+    )
 }
