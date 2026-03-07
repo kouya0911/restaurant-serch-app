@@ -1,5 +1,7 @@
 import Header from "@/components/ui/header";
 
+export const dynamic = 'force-dynamic';
+
 export default function PrivatePageLayout({
   children,
 }: Readonly<{

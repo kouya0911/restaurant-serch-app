@@ -615,7 +615,13 @@ export async function fetchLocation() {
     .eq('id', user.id)
     .single();
 
-  if (profileError || !profile || !profile.selected_address_id) {
+  if (profileError || !profile) {
+    console.error("[fetchLocation] Profile fetch error or not found:", profileError?.message || "No profile", "User ID:", user.id);
+    return { lat: Default_location.lat, Ing: Default_location.lng };
+  }
+
+  if (!profile.selected_address_id) {
+    console.warn("[fetchLocation] selected_address_id is null for user:", user.id);
     return { lat: Default_location.lat, Ing: Default_location.lng };
   }
 
@@ -627,11 +633,14 @@ export async function fetchLocation() {
     .single();
 
   if (addressError || !addressData) {
+    console.error("[fetchLocation] Address fetch error for ID:", profile.selected_address_id, addressError?.message || "No address data");
     return { lat: Default_location.lat, Ing: Default_location.lng };
   }
 
   const lat = addressData.latitude ?? Default_location.lat;
   const Ing = addressData.longitude ?? Default_location.lng;
+
+  console.log(`[fetchLocation] Successfully fetched location: ${lat}, ${Ing} for user: ${user.id}`);
 
   return { lat, Ing };
 }

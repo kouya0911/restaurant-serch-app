@@ -6,6 +6,7 @@ import { fetchLocation } from "@/lib/restaurants/api";
 
 async function Header() {
   const { lat, Ing } = await fetchLocation();
+  console.log(`[Header] Rendering with location: ${lat}, ${Ing}`);
   return (
     <header className="bg-background fixed top-0 left-0 w-full z-50 border-b">
       <div className="flex flex-col md:flex-row md:items-center p-4 md:h-16 gap-3 md:gap-4 max-w-[1920px] mx-auto">

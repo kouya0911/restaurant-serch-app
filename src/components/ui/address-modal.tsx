@@ -326,7 +326,7 @@ export default function AddressModal() {
                     key={address.id}
                     className={cn(
                       "p-5 justify-between items-center",
-                      address.id === data?.selectedAddress?.id && "bf-muted"
+                      address.id === data?.selectedAddress?.id && "bg-muted"
                     )}
 
                   >
