@@ -5,46 +5,51 @@ import { AddressSuggestion } from "@/types";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
-export async function selectSuggestionAction(suggestion:AddressSuggestion, sessionToken:string) {
-    const supabase = await createClient();
+export async function selectSuggestionAction(suggestion: AddressSuggestion, sessionToken: string) {
+  const supabase = await createClient();
 
-    const {data: locationData, error } = await getPlaceDetails(
-        suggestion.placeId, 
-        ["location"], 
-        sessionToken)
+  const { data: locationData, error } = await getPlaceDetails(
+    suggestion.placeId,
+    ["location"],
+    sessionToken)
 
-    if(error || !locationData || !locationData.location || !locationData.location.latitude || !locationData.location.longitude) {
-        throw new Error("住所情報を取得できませんでした")
-    }
+  if (error) {
+    console.error("[selectSuggestionAction] getPlaceDetails API Error:", error);
+    throw new Error(typeof error === 'string' ? error : "住所情報の取得APIでエラーが発生しました")
+  }
 
-    const {
-        data: {user}, 
-        error: userError,
-    } = await supabase.auth.getUser();
+  if (!locationData || !locationData.location || !locationData.location.latitude || !locationData.location.longitude) {
+    throw new Error("APIから住所の座標が返却されませんでした")
+  }
 
-    if(userError || !user) {
-        redirect("/login");
-    }
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-    const {data:newAddress, error: inserterror} = await supabase.from("addresses").insert({
-        name: suggestion.placeName,
-        address_text: suggestion.address_text,
-        latitude: locationData.location.latitude,
-        longitude: locationData.location.longitude,
-        user_id: user.id,
-    }).select("id").single();
+  if (userError || !user) {
+    redirect("/login");
+  }
 
-    if (inserterror) {
-        throw new Error("住所の保存に失敗しました")
-    }
+  const { data: newAddress, error: inserterror } = await supabase.from("addresses").insert({
+    name: suggestion.placeName,
+    address_text: suggestion.address_text,
+    latitude: locationData.location.latitude,
+    longitude: locationData.location.longitude,
+    user_id: user.id,
+  }).select("id").single();
 
-    const {error: updateError} = await supabase.from("profiles").update({
-        selected_address_id: newAddress.id,
-    }).eq("id", user.id)
+  if (inserterror) {
+    throw new Error("住所の保存に失敗しました")
+  }
 
-    if (updateError) {
-        throw new Error("プロフィールの更新に失敗しました")
-    }
+  const { error: updateError } = await supabase.from("profiles").update({
+    selected_address_id: newAddress.id,
+  }).eq("id", user.id)
+
+  if (updateError) {
+    throw new Error("プロフィールの更新に失敗しました")
+  }
 }
 
 export async function selectAddressAction(addressId: number) {
@@ -92,8 +97,8 @@ export async function selectAddressAction(addressId: number) {
 }
 
 
-export async function deleteAddressAction(addressId:number) {
-    const supabase = await createClient();
+export async function deleteAddressAction(addressId: number) {
+  const supabase = await createClient();
 
   // get user
   const {
@@ -107,12 +112,12 @@ export async function deleteAddressAction(addressId:number) {
   }
 
   const { error } = await supabase
-  .from("addresses")
-  .delete()
-  .eq('id', addressId)
-  .eq('user_id', user.id)
+    .from("addresses")
+    .delete()
+    .eq('id', addressId)
+    .eq('user_id', user.id)
 
-  if(error) {
+  if (error) {
     throw new Error("error")
   }
 }

@@ -68,7 +68,7 @@
 //     const fetcher = (url:string) => fetch(url).then(res => res.json())
 
 //     const { data, error, isLoading:loading } = useSWR<AddressResponse>(`/api/user/address`, fetcher)
- 
+
 //     if (error) return <div>failed to load</div>
 //     if (isLoading) return <div>loading...</div>
 
@@ -215,7 +215,7 @@ export default function AddressModal() {
   }, [inputText, fetchSuggestions]);
 
   // fetcher for SWR
-  const fetcher = (url:string) => fetch(url).then(res => res.json())
+  const fetcher = (url: string) => fetch(url).then(res => res.json())
 
   // fix: remove stray '}' from path
   const { data, error, isLoading: swrLoading, mutate } = useSWR<AddressResponse>('/api/address', fetcher);
@@ -233,9 +233,10 @@ export default function AddressModal() {
       setInputText("");
       mutate()
       router.refresh();
-    } catch (err) {
+      setOpen(false)
+    } catch (err: any) {
       console.error('[selectSuggestion] error', err);
-      alert("error");
+      alert(err.message || "エラーが発生しました");
     }
   }
 
@@ -258,7 +259,7 @@ export default function AddressModal() {
       setOpen(false);
       mutate()
       router.refresh();
-    } catch(error) {
+    } catch (error) {
       alert("unexpected")
     }
   }
@@ -313,13 +314,13 @@ export default function AddressModal() {
                 {swrLoading && <div>読み込み中...</div>}
                 {!swrLoading && data?.addressList?.length === 0 && <div className="p-3">保存されていません</div>}
                 {!swrLoading && data?.addressList?.map(address => (
-                  <CommandItem 
-                  onSelect={() => handleSelectAddress(address)}
-                  key={address.id} 
-                  className={cn(
-                    "p-5 justify-between items-center",
-                    address.id === data?.selectedAddress?.id && "bf-muted"
-                  )}
+                  <CommandItem
+                    onSelect={() => handleSelectAddress(address)}
+                    key={address.id}
+                    className={cn(
+                      "p-5 justify-between items-center",
+                      address.id === data?.selectedAddress?.id && "bf-muted"
+                    )}
 
                   >
                     <div>

@@ -588,9 +588,9 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     }
 
     return { data: results };
-  } catch (err) {
-    console.error("[getPlaceDetails] error:", err);
-    return { error: "Place details request error" };
+  } catch (err: any) {
+    console.error("[getPlaceDetails] error:", err.message || err);
+    return { error: `Place details request error: ${err.message || "Unknown error"}` };
   }
 }
 
