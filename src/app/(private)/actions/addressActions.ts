@@ -3,6 +3,7 @@
 import { getPlaceDetails } from "@/lib/restaurants/api";
 import { AddressSuggestion } from "@/types";
 import { createClient } from "@/utils/supabase/server";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function selectSuggestionAction(suggestion: AddressSuggestion, sessionToken: string) {
@@ -45,6 +46,9 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
   if (updateError) {
     throw new Error("プロフィールの更新に失敗しました")
   }
+
+  revalidatePath("/");
+  revalidatePath("/search");
 }
 
 export async function selectAddressAction(addressId: number) {
@@ -88,6 +92,8 @@ export async function selectAddressAction(addressId: number) {
     throw new Error("プロフィールの更新に失敗しました");
   }
 
+  revalidatePath("/");
+  revalidatePath("/search");
   return true;
 }
 
