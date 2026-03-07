@@ -233,7 +233,16 @@ export default function AddressModal() {
 
   const handleSelectSuggestion = async (suggestion: AddressSuggestion) => {
     try {
-      await selectSuggestionAction(suggestion, sessionToken);
+      const res = await selectSuggestionAction(suggestion, sessionToken);
+      if (!res.success) {
+        if (res.message === "AUTH_REQUIRED") {
+          router.push("/login");
+          return;
+        }
+        alert(`Error: ${res.message}`);
+        return;
+      }
+
       // refresh token for next session
       setSessionToken(uuidv4());
       // optionally refetch saved addresses via SWR mutate if needed
@@ -241,23 +250,29 @@ export default function AddressModal() {
       mutate()
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error('[selectSuggestion] error', err);
-      const msg = err instanceof Error ? err.message : "住所の選択に失敗しました";
-      alert(`Error: ${msg}`);
+      alert(`Error: ${err.message || '予期せぬエラーが発生しました'}`);
     }
   }
 
   const handleSelectAddress = async (address: Address) => {
     try {
-      await selectAddressAction(address.id);
+      const res = await selectAddressAction(address.id);
+      if (!res.success) {
+        if (res.message === "AUTH_REQUIRED") {
+          router.push("/login");
+          return;
+        }
+        alert(`Error: ${res.message}`);
+        return;
+      }
       mutate();
       setOpen(false);
       router.refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error('[selectAddress] error', error);
-      const msg = error instanceof Error ? error.message : "選択に失敗しました";
-      alert(`Error: ${msg}`);
+      alert(`Error: ${error.message || '予期せぬエラーが発生しました'}`);
     }
   }
 
@@ -265,14 +280,21 @@ export default function AddressModal() {
     const ok = window.confirm("この住所を削除しますか？")
     if (!ok) return;
     try {
-      await deleteAddressAction(addressId);
+      const res = await deleteAddressAction(addressId);
+      if (!res.success) {
+        if (res.message === "AUTH_REQUIRED") {
+          router.push("/login");
+          return;
+        }
+        alert(`Error: ${res.message}`);
+        return;
+      }
       setOpen(false);
       mutate()
       router.refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error('[deleteAddress] error', error);
-      const msg = error instanceof Error ? error.message : "削除に失敗しました";
-      alert(`Error: ${msg}`);
+      alert(`Error: ${error.message || '予期せぬエラーが発生しました'}`);
     }
   }
 

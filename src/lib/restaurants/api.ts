@@ -600,9 +600,11 @@ export async function fetchLocation() {
   const supabase = await createClient();
 
   const {
-    data: { user },
+    data,
     error: userError,
   } = await supabase.auth.getUser();
+
+  const user = data?.user;
 
   if (userError || !user) {
     redirect("/login");
