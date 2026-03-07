@@ -307,7 +307,7 @@ async function safeFetchJson(url: string, opts: RequestInit) {
   return res.json();
 }
 
-export async function fetchRestaurants(lat:number, Ing:number) {
+export async function fetchRestaurants(lat: number, Ing: number) {
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -381,7 +381,7 @@ export async function fetchRestaurants(lat:number, Ing:number) {
   }
 }
 
-export async function fetchRamenRestaurants(lat:number, Ing:number) {
+export async function fetchRamenRestaurants(lat: number, Ing: number) {
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -433,7 +433,7 @@ export async function fetchRamenRestaurants(lat:number, Ing:number) {
   }
 }
 
-export async function fetchCategoryRestaurants(category: string, lat:number, Ing:number) {
+export async function fetchCategoryRestaurants(category: string, lat: number, Ing: number) {
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -484,7 +484,7 @@ export async function fetchCategoryRestaurants(category: string, lat:number, Ing
   }
 }
 
-export async function fetchRestaurantsByKeyword(query: string, lat:number, Ing:number) {
+export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing: number) {
   const url = "https://places.googleapis.com/v1/places:searchText";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -586,32 +586,38 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
 }
 
 export async function fetchLocation() {
-  const Default_location = {lat: 35.6669248, lng: 139.6514163};
+  const Default_location = { lat: 35.6669248, lng: 139.6514163 };
   const supabase = await createClient();
 
   const {
-      data: {user}, 
-      error: userError,
+    data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if(userError || !user) {
-      redirect("/login");
+  if (userError || !user) {
+    redirect("/login");
   }
 
   let { data: selectedAddress, error } = await supabase
-  .from('profiles')
-  .select(`
+    .from('profiles')
+    .select(`
     addresses (
       latitude, longitude
     )
   `).eq('id', user.id).single();
 
-  if(error) {
-    throw new Error("fail")
+  if (error) {
+    console.error("fetchLocation Supabase Error:", error.message || error);
+    return { lat: Default_location.lat, Ing: Default_location.lng };
   }
 
-  const lat = selectedAddress?.addresses?.latitude ?? Default_location.lat
-  const Ing = selectedAddress?.addresses?.longitude ?? Default_location.lng
+  // addressが配列で返ってくる場合の考慮を追加
+  const addressList = Array.isArray(selectedAddress?.addresses)
+    ? selectedAddress.addresses[0]
+    : selectedAddress?.addresses;
 
-  return { lat, Ing }
+  const lat = addressList?.latitude ?? Default_location.lat;
+  const Ing = addressList?.longitude ?? Default_location.lng;
+
+  return { lat, Ing };
 }
