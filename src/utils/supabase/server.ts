@@ -18,17 +18,21 @@ export async function createClient() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          try {
+            return cookieStore.getAll()
+          } catch {
+            return []
+          }
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+          } catch (error) {
+            // Next.js may throw when setting cookies in certain contexts (like Server Components or specific Action flows)
+            // We ignore it here to prevent the "Server Components render" crash
+            console.warn('[Supabase/Server] Failed to set cookies:', error instanceof Error ? error.message : error);
           }
         },
       },
