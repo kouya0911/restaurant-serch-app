@@ -191,9 +191,16 @@ export default function AddressModal() {
       }
       try {
         const response = await fetch(`/api/address/autocomplete?input=${encodeURIComponent(inputText)}&sessionToken=${sessionToken}`);
-        const data: AddressSuggestion[] = await response.json();
+        const data = await response.json();
+
+        if (!response.ok || !Array.isArray(data)) {
+          console.error('[autocomplete] API error:', data);
+          setSuggestions([]);
+          return;
+        }
+
         console.log('[autocomplete] got data', data);
-        setSuggestions(data ?? []);
+        setSuggestions(data);
       } catch (error) {
         console.error('[autocomplete] fetch error', error);
         setSuggestions([]);
@@ -233,10 +240,9 @@ export default function AddressModal() {
       setInputText("");
       mutate()
       router.refresh();
-      setOpen(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error('[selectSuggestion] error', err);
-      alert(err.message || "エラーが発生しました");
+      alert("error");
     }
   }
 

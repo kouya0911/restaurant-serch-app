@@ -38,10 +38,18 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
             }
             try {
                 const response = await fetch(`/api/restaurant/autocomplete?input=${inputText}&sessionToken=${sessionToken}&lat=${lat}&Ing=${Ing}`);
-                const data: RestaurantSuggestion[] = await response.json()
+                const data = await response.json()
+
+                if (!response.ok || !Array.isArray(data)) {
+                    console.error('[autocomplete] API error:', data);
+                    setSuggestions([]);
+                    return;
+                }
+
                 setSuggestions(data)
             } catch (error) {
                 console.error(error);
+                setSuggestions([])
             } finally {
                 setIsLoading(false);
             }

@@ -13,13 +13,8 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
     ["location"],
     sessionToken)
 
-  if (error) {
-    console.error("[selectSuggestionAction] getPlaceDetails API Error:", error);
-    throw new Error(typeof error === 'string' ? error : "住所情報の取得APIでエラーが発生しました")
-  }
-
-  if (!locationData || !locationData.location || !locationData.location.latitude || !locationData.location.longitude) {
-    throw new Error("APIから住所の座標が返却されませんでした")
+  if (error || !locationData || !locationData.location || !locationData.location.latitude || !locationData.location.longitude) {
+    throw new Error("住所情報を取得できませんでした")
   }
 
   const {
