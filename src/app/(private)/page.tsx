@@ -9,43 +9,42 @@ import { redirect } from "next/navigation";
 
 export default async function Home() {
   const { lat, Ing } = await fetchLocation();
-  const {data:nearbyRamenRestaurants, error: nearbyRamenRestaurantsError} = await fetchRamenRestaurants(lat, Ing);
-  const {data:nearbyRestaurants, error: nearbyRestaurantsError} = await fetchRestaurants(lat, Ing);
+  const { data: nearbyRamenRestaurants, error: nearbyRamenRestaurantsError } = await fetchRamenRestaurants(lat, Ing);
+  const { data: nearbyRestaurants, error: nearbyRestaurantsError } = await fetchRestaurants(lat, Ing);
   return (
     <>
-    <Categories />
+      <Categories />
 
-    {/* 近くのレストラン */}
-    {!nearbyRestaurants ? (
-      <p>{nearbyRestaurantsError}</p>
-    ): nearbyRestaurants.length > 0 ? (
-      <Section title="近くのレストラン" expandedContent={<RestaurantList restaurants={nearbyRestaurants} />}>
-        <CarouselContainer slideToShow={4}>
-          {nearbyRestaurants.map((restaurant, index) => (
-            <RestaurantCard key={index} restaurant={restaurant} />
-          ))}
-        </CarouselContainer>
-      </Section>
-    ): (
-      <p>近くにレストランが見つかりませんでした。</p>
-    )}
+      {/* 近くのレストラン */}
+      {!nearbyRestaurants ? (
+        <p>{nearbyRestaurantsError}</p>
+      ) : nearbyRestaurants.length > 0 ? (
+        <Section title="近くのレストラン" expandedContent={<RestaurantList restaurants={nearbyRestaurants} />}>
+          <CarouselContainer slideToShow={4}>
+            {nearbyRestaurants.map((restaurant, index) => (
+              <RestaurantCard key={index} restaurant={restaurant} />
+            ))}
+          </CarouselContainer>
+        </Section>
+      ) : (
+        <p>近くにレストランが見つかりませんでした。</p>
+      )}
 
-    {/* 近くのラーメン屋 */}
-    {!nearbyRamenRestaurants ? (
-      <p>{nearbyRamenRestaurantsError}</p>
-    ): nearbyRamenRestaurants.length > 0 ? (
-      <Section title="近くのラーメン屋" expandedContent={<RestaurantList restaurants={nearbyRamenRestaurants}/>}>
-        <CarouselContainer slideToShow={4}>
-          {nearbyRamenRestaurants.map((restaurant, index) => (
-            <RestaurantCard key={index} restaurant={restaurant} />
-          ))}
-        </CarouselContainer>
-      </Section>
-    ): (
-      <p>近くにラーメン屋が見つかりませんでした。</p>
-    )}
-    
+      {/* 近くのラーメン屋 */}
+      {!nearbyRamenRestaurants ? (
+        <p>{nearbyRamenRestaurantsError}</p>
+      ) : nearbyRamenRestaurants.length > 0 ? (
+        <Section title="近くのラーメン屋" expandedContent={<RestaurantList restaurants={nearbyRamenRestaurants} />}>
+          <CarouselContainer slideToShow={4}>
+            {nearbyRamenRestaurants.map((restaurant, index) => (
+              <RestaurantCard key={index} restaurant={restaurant} />
+            ))}
+          </CarouselContainer>
+        </Section>
+      ) : (
+        <p>近くにラーメン屋が見つかりませんでした。</p>
+      )}
+
     </>
   );
 }
-  

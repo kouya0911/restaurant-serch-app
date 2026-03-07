@@ -39,11 +39,9 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
     throw new Error("住所の保存に失敗しました")
   }
 
-  // update ではなく upsert を使用してレコードがない場合も対応
-  const { error: updateError } = await supabase.from("profiles").upsert({
-    id: user.id,
+  const { error: updateError } = await supabase.from("profiles").update({
     selected_address_id: newAddress.id,
-  }, { onConflict: 'id' })
+  }).eq("id", user.id)
 
   if (updateError) {
     throw new Error("プロフィールの更新に失敗しました")
@@ -62,11 +60,10 @@ export async function selectAddressAction(addressId: number) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    // サーバアクション内での未認証はリダイレクトする
     redirect("/login");
   }
 
-  // 所有者チェック: 指定 address の user_id が現在の user.id と一致するか確認
+  // 所有者チェック
   const { data: addrData, error: addrError } = await supabase
     .from("addresses")
     .select("id, user_id")
@@ -74,22 +71,18 @@ export async function selectAddressAction(addressId: number) {
     .single();
 
   if (addrError) {
-    // address が見つからない / DB エラー
     throw new Error("指定された住所が見つかりませんでした");
   }
 
   if (!addrData || addrData.user_id !== user.id) {
-    // 他人の住所を選択しようとしているなどの不整合
     throw new Error("この住所を選択する権限がありません");
   }
 
-  // プロフィールの selected_address_id を更新 (upsert)
+  // プロフィールの selected_address_id を更新
   const { error: updateError } = await supabase
     .from("profiles")
-    .upsert({
-      id: user.id,
-      selected_address_id: addressId
-    }, { onConflict: 'id' });
+    .update({ selected_address_id: addressId })
+    .eq("id", user.id);
 
   if (updateError) {
     throw new Error("プロフィールの更新に失敗しました");
@@ -98,7 +91,6 @@ export async function selectAddressAction(addressId: number) {
   revalidatePath("/", "layout");
   return true;
 }
-
 
 export async function deleteAddressAction(addressId: number) {
   const supabase = await createClient();
@@ -110,7 +102,6 @@ export async function deleteAddressAction(addressId: number) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    // サーバアクション内での未認証はリダイレクトする
     redirect("/login");
   }
 

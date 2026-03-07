@@ -368,7 +368,7 @@ export async function fetchRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
 
     if (!data.places) {
@@ -425,7 +425,7 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
 
     if (!data.places) {
@@ -477,7 +477,7 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
 
     if (!data.places) {
@@ -528,7 +528,7 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
 
     if (!data.places) {
@@ -578,7 +578,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     const data: GooglePlacesDetailsAPIResponse = await safeFetchJson(url, {
       method: "GET",
       headers,
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
 
     const results: PlaceDetailsAll = {};
