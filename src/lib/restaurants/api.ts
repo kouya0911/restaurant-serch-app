@@ -607,26 +607,30 @@ export async function fetchLocation() {
     redirect("/login");
   }
 
-  let { data: selectedAddress, error } = await supabase
+  // まずプロフィールの selected_address_id を取得
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select(`
-    addresses (
-      latitude, longitude
-    )
-  `).eq('id', user.id).single();
+    .select('selected_address_id')
+    .eq('id', user.id)
+    .single();
 
-  if (error) {
-    console.error("fetchLocation Supabase Error:", error.message || error);
+  if (profileError || !profile || !profile.selected_address_id) {
     return { lat: Default_location.lat, Ing: Default_location.lng };
   }
 
-  // addressが配列で返ってくる場合の考慮を追加
-  const addressList = Array.isArray(selectedAddress?.addresses)
-    ? selectedAddress.addresses[0]
-    : selectedAddress?.addresses;
+  // selected_address_id を使ってアドレス情報を取得
+  const { data: addressData, error: addressError } = await supabase
+    .from('addresses')
+    .select('latitude, longitude')
+    .eq('id', profile.selected_address_id)
+    .single();
 
-  const lat = addressList?.latitude ?? Default_location.lat;
-  const Ing = addressList?.longitude ?? Default_location.lng;
+  if (addressError || !addressData) {
+    return { lat: Default_location.lat, Ing: Default_location.lng };
+  }
+
+  const lat = addressData.latitude ?? Default_location.lat;
+  const Ing = addressData.longitude ?? Default_location.lng;
 
   return { lat, Ing };
 }
