@@ -243,7 +243,8 @@ export default function AddressModal() {
       router.refresh();
     } catch (err) {
       console.error('[selectSuggestion] error', err);
-      alert("error");
+      const msg = err instanceof Error ? err.message : "住所の選択に失敗しました";
+      alert(`Error: ${msg}`);
     }
   }
 
@@ -254,7 +255,9 @@ export default function AddressModal() {
       setOpen(false);
       router.refresh();
     } catch (error) {
-      alert("unexpected")
+      console.error('[selectAddress] error', error);
+      const msg = error instanceof Error ? error.message : "選択に失敗しました";
+      alert(`Error: ${msg}`);
     }
   }
 
@@ -267,7 +270,9 @@ export default function AddressModal() {
       mutate()
       router.refresh();
     } catch (error) {
-      alert("unexpected")
+      console.error('[deleteAddress] error', error);
+      const msg = error instanceof Error ? error.message : "削除に失敗しました";
+      alert(`Error: ${msg}`);
     }
   }
 
