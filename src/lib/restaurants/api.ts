@@ -288,6 +288,7 @@ import { transformPlaceResults } from "@/lib/restaurants/utils";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
+import { MOCK_RESTAURANTS } from "./mock-data";
 
 
 // 近くのレストラン
@@ -316,7 +317,21 @@ async function safeFetchJson(url: string, opts: RequestInit) {
   return res.json();
 }
 
+/**
+ * モックモードが有効か、または開発環境でAPIキーがない場合にモックを使用するか
+ */
+function shouldMock() {
+  if (process.env.ENABLE_MOCK_API === 'true') return true;
+  if (process.env.NODE_ENV === 'development' && !process.env.GOOGLE_API_KEY) return true;
+  return false;
+}
+
 export async function fetchRestaurants(lat: number, Ing: number) {
+  if (shouldMock()) {
+    console.log("[api] Mocking fetchRestaurants");
+    return { data: MOCK_RESTAURANTS };
+  }
+
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -331,20 +346,9 @@ export async function fetchRestaurants(lat: number, Ing: number) {
   };
 
   const desiredTypes = [
-    "japanese_restaurant",
-    "cafe",
-    "cafeteria",
-    "coffee_shop",
-    "chinese_restaurant",
-    "fast_food_restaurant",
-    "hamburger_restaurant",
-    "french_restaurant",
-    "italian_restaurant",
-    "pizza_restaurant",
-    "ramen_restaurant",
-    "sushi_restaurant",
-    "korean_restaurant",
-    "indian_restaurant",
+    "japanese_restaurant", "cafe", "cafeteria", "coffee_shop", "chinese_restaurant",
+    "fast_food_restaurant", "hamburger_restaurant", "french_restaurant", "italian_restaurant",
+    "pizza_restaurant", "ramen_restaurant", "sushi_restaurant", "korean_restaurant", "indian_restaurant",
   ];
 
   const requestBody = {
@@ -352,10 +356,7 @@ export async function fetchRestaurants(lat: number, Ing: number) {
     maxResultCount: 10,
     locationRestriction: {
       circle: {
-        center: {
-          latitude: lat,
-          longitude: Ing,
-        },
+        center: { latitude: lat, longitude: Ing },
         radius: 1000.0,
       },
     },
@@ -368,21 +369,16 @@ export async function fetchRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      cache: "no-store",
+      next: { revalidate: 3600, tags: ['restaurants'] }
     });
 
-    if (!data.places) {
-      return { data: [] };
-    }
+    if (!data.places) return { data: [] };
 
-    const nearbyPlaces = data.places;
-
-    const matchingPlaces = nearbyPlaces.filter(
+    const matchingPlaces = data.places.filter(
       (place) => place.primaryType && desiredTypes.includes(place.primaryType)
     );
 
     const Restaurants = await transformPlaceResults(matchingPlaces);
-
     return { data: Restaurants };
   } catch (err: any) {
     console.error("[fetchRestaurants] error:", err.message || err);
@@ -391,6 +387,11 @@ export async function fetchRestaurants(lat: number, Ing: number) {
 }
 
 export async function fetchRamenRestaurants(lat: number, Ing: number) {
+  if (shouldMock()) {
+    console.log("[api] Mocking fetchRamenRestaurants");
+    return { data: MOCK_RESTAURANTS.filter(r => r.primaryType === "ramen_restaurant") };
+  }
+
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -409,10 +410,7 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
     maxResultCount: 10,
     locationRestriction: {
       circle: {
-        center: {
-          latitude: lat,
-          longitude: Ing,
-        },
+        center: { latitude: lat, longitude: Ing },
         radius: 1000.0,
       },
     },
@@ -425,16 +423,12 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      cache: "no-store",
+      next: { revalidate: 3600, tags: ['restaurants'] }
     });
 
-    if (!data.places) {
-      return { data: [] };
-    }
+    if (!data.places) return { data: [] };
 
-    const nearbyRamenPlaces = data.places;
-
-    const RamenRestaurants = await transformPlaceResults(nearbyRamenPlaces);
+    const RamenRestaurants = await transformPlaceResults(data.places);
     return { data: RamenRestaurants };
   } catch (err: any) {
     console.error("[fetchRamenRestaurants] error:", err.message || err);
@@ -443,6 +437,10 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
 }
 
 export async function fetchCategoryRestaurants(category: string, lat: number, Ing: number) {
+  if (shouldMock()) {
+    return { data: MOCK_RESTAURANTS.filter(r => r.primaryType === category) };
+  }
+
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -461,10 +459,7 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
     maxResultCount: 10,
     locationRestriction: {
       circle: {
-        center: {
-          latitude: lat,
-          longitude: Ing,
-        },
+        center: { latitude: lat, longitude: Ing },
         radius: 1000.0,
       },
     },
@@ -477,15 +472,12 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      cache: "no-store",
+      next: { revalidate: 3600, tags: ['restaurants'] }
     });
 
-    if (!data.places) {
-      return { data: [] };
-    }
+    if (!data.places) return { data: [] };
 
-    const categoryPlaces = data.places;
-    const categoryRestaurants = await transformPlaceResults(categoryPlaces);
+    const categoryRestaurants = await transformPlaceResults(data.places);
     return { data: categoryRestaurants };
   } catch (err: any) {
     console.error("[fetchCategoryRestaurants] error:", err.message || err);
@@ -494,6 +486,10 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
 }
 
 export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing: number) {
+  if (shouldMock()) {
+    return { data: MOCK_RESTAURANTS.filter(r => r.restaurantName?.includes(query)) };
+  }
+
   const url = "https://places.googleapis.com/v1/places:searchText";
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
@@ -512,10 +508,7 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
     pageSize: 10,
     locationBias: {
       circle: {
-        center: {
-          latitude: lat,
-          longitude: Ing,
-        },
+        center: { latitude: lat, longitude: Ing },
         radius: 1000.0,
       },
     },
@@ -528,15 +521,12 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      cache: "no-store",
+      next: { revalidate: 3600, tags: ['restaurants'] }
     });
 
-    if (!data.places) {
-      return { data: [] };
-    }
+    if (!data.places) return { data: [] };
 
-    const textSearchPlaces = data.places;
-    const restaurants = await transformPlaceResults(textSearchPlaces);
+    const restaurants = await transformPlaceResults(data.places);
     return { data: restaurants };
   } catch (err: any) {
     console.error("[fetchRestaurantsByKeyword] error:", err.message || err);
@@ -545,7 +535,6 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
 }
 
 export async function getPhotoUrl(name: string, maxWidth = 400) {
-  "use cache";
   const apikey = process.env.GOOGLE_API_KEY;
   const url = `https://places.googleapis.com/v1/${name}/media?key=${apikey}&maxWidthPx=${maxWidth}`;
   return url;
@@ -553,7 +542,6 @@ export async function getPhotoUrl(name: string, maxWidth = 400) {
 
 export async function getPlaceDetails(placeId: string, fields: string[], sessionToken?: string) {
   let url: string;
-
   const fieldsParam = fields.join(",");
 
   if (sessionToken) {
@@ -578,11 +566,10 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     const data: GooglePlacesDetailsAPIResponse = await safeFetchJson(url, {
       method: "GET",
       headers,
-      cache: "no-store",
+      next: { revalidate: 86400 } // アドレス詳細は1日キャッシュ
     });
 
     const results: PlaceDetailsAll = {};
-
     if (fields.includes("location") && (data as any).location) {
       results.location = (data as any).location;
     }
@@ -593,6 +580,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     return { error: "Place details request error" };
   }
 }
+
 
 export async function fetchLocation() {
   noStore();

@@ -36,6 +36,8 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
                 setSuggestions([])
                 return;
             }
+            // 重複リクエスト防止
+            setIsLoading(true);
             try {
                 const response = await fetch(`/api/restaurant/autocomplete?input=${inputText}&sessionToken=${sessionToken}&lat=${lat}&Ing=${Ing}`);
                 const data = await response.json()
@@ -57,15 +59,15 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
 
     useEffect(() => {
         if (!inputText.trim()) {
-            ""
+            fetchSuggestions.cancel();
             setOpen(false);
             setSuggestions([])
+            setIsLoading(false);
             return;
         }
-        setIsLoading(true);
         setOpen(true)
         fetchSuggestions();
-    }, [inputText]);
+    }, [inputText, fetchSuggestions]);
 
     const handleBlur = () => {
         if (clickedOnItem.current) {

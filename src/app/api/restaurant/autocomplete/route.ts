@@ -17,12 +17,25 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        // モックモード
+        if (process.env.ENABLE_MOCK_API === "true" || (process.env.NODE_ENV === "development" && !process.env.GOOGLE_API_KEY)) {
+            const mockSuggestions: RestaurantSuggestion[] = [
+                { type: "placePrediction", placeId: "mock-1", placeName: "モック和食処 まるふく" },
+                { type: "placePrediction", placeId: "mock-2", placeName: "カフェ・ド・モック" },
+                { type: "queryPrediction", placeName: `${input} の検索結果（モック）` }
+            ].filter(s => s.placeName.includes(input));
+            return NextResponse.json(mockSuggestions);
+        }
+
         const url = "https://places.googleapis.com/v1/places:autocomplete"
 
         const apikey = process.env.GOOGLE_API_KEY
+        if (!apikey) {
+            return NextResponse.json({ error: "APIキーが設定されていません。" }, { status: 500 });
+        }
         const header = {
             "Content-Type": "application/json",
-            "X-Goog-Api-Key": apikey!,
+            "X-Goog-Api-Key": apikey,
         };
 
         const latitude = parseFloat(lat || "35.6669248");

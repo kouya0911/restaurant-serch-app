@@ -3,7 +3,7 @@
 import { getPlaceDetails } from "@/lib/restaurants/api";
 import { AddressSuggestion } from "@/types";
 import { createClient } from "@/utils/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function selectSuggestionAction(suggestion: AddressSuggestion, sessionToken: string) {
