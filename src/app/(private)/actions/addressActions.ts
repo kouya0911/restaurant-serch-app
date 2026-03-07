@@ -39,16 +39,17 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
     throw new Error("住所の保存に失敗しました")
   }
 
-  const { error: updateError } = await supabase.from("profiles").update({
+  // update ではなく upsert を使用してレコードがない場合も対応
+  const { error: updateError } = await supabase.from("profiles").upsert({
+    id: user.id,
     selected_address_id: newAddress.id,
-  }).eq("id", user.id)
+  }, { onConflict: 'id' })
 
   if (updateError) {
     throw new Error("プロフィールの更新に失敗しました")
   }
 
-  revalidatePath("/");
-  revalidatePath("/search");
+  revalidatePath("/", "layout");
 }
 
 export async function selectAddressAction(addressId: number) {
@@ -82,18 +83,19 @@ export async function selectAddressAction(addressId: number) {
     throw new Error("この住所を選択する権限がありません");
   }
 
-  // プロフィールの selected_address_id を更新
+  // プロフィールの selected_address_id を更新 (upsert)
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({ selected_address_id: addressId })
-    .eq("id", user.id);
+    .upsert({
+      id: user.id,
+      selected_address_id: addressId
+    }, { onConflict: 'id' });
 
   if (updateError) {
     throw new Error("プロフィールの更新に失敗しました");
   }
 
-  revalidatePath("/");
-  revalidatePath("/search");
+  revalidatePath("/", "layout");
   return true;
 }
 
@@ -121,4 +123,6 @@ export async function deleteAddressAction(addressId: number) {
   if (error) {
     throw new Error("error")
   }
+
+  revalidatePath("/", "layout");
 }
