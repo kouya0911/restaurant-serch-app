@@ -295,8 +295,17 @@ async function safeFetchJson(url: string, opts: RequestInit) {
   const res = await fetch(url, opts);
   if (!res.ok) {
     const text = await res.text();
-    console.error(`[safeFetchJson] non-ok response (${res.status}):`, text.slice(0, 1000));
-    throw new Error(`Fetch error: ${res.status}`);
+    let errorDetail = text;
+    try {
+      const jsonError = JSON.parse(text);
+      if (jsonError.error && jsonError.error.message) {
+        errorDetail = jsonError.error.message;
+      }
+    } catch (e) {
+      // not JSON
+    }
+    console.error(`[safeFetchJson] non-ok response (${res.status}):`, errorDetail);
+    throw new Error(`Fetch error: ${res.status} - ${errorDetail}`);
   }
   const ct = res.headers.get("content-type") ?? "";
   if (!ct.includes("application/json")) {
@@ -375,9 +384,9 @@ export async function fetchRestaurants(lat: number, Ing: number) {
     const Restaurants = await transformPlaceResults(matchingPlaces);
 
     return { data: Restaurants };
-  } catch (err) {
-    console.error("[fetchRestaurants] error:", err);
-    return { error: "Nearby Search API error" };
+  } catch (err: any) {
+    console.error("[fetchRestaurants] error:", err.message || err);
+    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
   }
 }
 
@@ -427,9 +436,9 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
 
     const RamenRestaurants = await transformPlaceResults(nearbyRamenPlaces);
     return { data: RamenRestaurants };
-  } catch (err) {
-    console.error("[fetchRamenRestaurants] error:", err);
-    return { error: "Nearby Search API error" };
+  } catch (err: any) {
+    console.error("[fetchRamenRestaurants] error:", err.message || err);
+    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
   }
 }
 
@@ -478,9 +487,9 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
     const categoryPlaces = data.places;
     const categoryRestaurants = await transformPlaceResults(categoryPlaces);
     return { data: categoryRestaurants };
-  } catch (err) {
-    console.error("[fetchCategoryRestaurants] error:", err);
-    return { error: "Nearby Search API error" };
+  } catch (err: any) {
+    console.error("[fetchCategoryRestaurants] error:", err.message || err);
+    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
   }
 }
 
@@ -529,9 +538,9 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
     const textSearchPlaces = data.places;
     const restaurants = await transformPlaceResults(textSearchPlaces);
     return { data: restaurants };
-  } catch (err) {
-    console.error("[fetchRestaurantsByKeyword] error:", err);
-    return { error: "Text Search request error" };
+  } catch (err: any) {
+    console.error("[fetchRestaurantsByKeyword] error:", err.message || err);
+    return { error: `Text Search request error: ${err.message || "Unknown error"}` };
   }
 }
 
