@@ -284,10 +284,10 @@
 
 // src/lib/restaurants/api.ts
 import { GooglePlacesDetailsAPIResponse, GooglePlacesSearchAPIResponse, PlaceDetailsAll } from "@/types";
-import { PlaceSearchResult } from "@/types";
 import { transformPlaceResults } from "@/lib/restaurants/utils";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 
 
 // 近くのレストラン
@@ -368,7 +368,7 @@ export async function fetchRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     if (!data.places) {
@@ -425,7 +425,7 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     if (!data.places) {
@@ -477,7 +477,7 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     if (!data.places) {
@@ -528,7 +528,7 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
       method: "POST",
       body: JSON.stringify(requestBody),
       headers,
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     if (!data.places) {
@@ -578,7 +578,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     const data: GooglePlacesDetailsAPIResponse = await safeFetchJson(url, {
       method: "GET",
       headers,
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
 
     const results: PlaceDetailsAll = {};
@@ -595,6 +595,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
 }
 
 export async function fetchLocation() {
+  noStore();
   const Default_location = { lat: 35.6669248, lng: 139.6514163 };
   const supabase = await createClient();
 

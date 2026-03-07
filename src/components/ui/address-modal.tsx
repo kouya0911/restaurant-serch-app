@@ -239,6 +239,7 @@ export default function AddressModal() {
       // optionally refetch saved addresses via SWR mutate if needed
       setInputText("");
       mutate()
+      setOpen(false);
       router.refresh();
     } catch (err) {
       console.error('[selectSuggestion] error', err);

@@ -7,6 +7,8 @@ import RestaurantList from "@/components/ui/restaurant-list";
 import Categories from "@/components/ui/categories";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const { lat, Ing } = await fetchLocation();
   const { data: nearbyRamenRestaurants, error: nearbyRamenRestaurantsError } = await fetchRamenRestaurants(lat, Ing);

@@ -3,6 +3,8 @@ import RestaurantList from "@/components/ui/restaurant-list";
 import { fetchCategoryRestaurants, fetchLocation, fetchRestaurants, fetchRestaurantsByKeyword } from "@/lib/restaurants/api";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SearchPage({
     searchParams
 }: {
