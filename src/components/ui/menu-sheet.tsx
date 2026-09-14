@@ -180,17 +180,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Menu } from "lucide-react"
+import { Menu, Ticket } from "lucide-react"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/app/(auth)/login/actions"
+import LotteryModal from "@/components/ui/lottery-modal"
+import { useLottery } from "@/components/ui/lottery-provider"
 
 export default function Menusheet() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [favorites, setFavorites] = useState<any[]>([])
+  const { candidates } = useLottery()
+  const [isLotteryOpen, setIsLotteryOpen] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -231,7 +235,7 @@ export default function Menusheet() {
   }, [])
 
   return (
-    <Sheet>
+    <Sheet onOpenChange={(open) => { if (!open) setIsLotteryOpen(false) }}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon">
           <Menu />
@@ -283,6 +287,21 @@ export default function Menusheet() {
             </Button>
           )}
         </div>
+
+        {/* くじびき */}
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setIsLotteryOpen(true)}
+        >
+          <Ticket className="h-4 w-4 mr-2" />
+          くじびきを見る（{candidates.length}件）
+        </Button>
+
+        <LotteryModal
+          isOpen={isLotteryOpen}
+          onClose={() => setIsLotteryOpen(false)}
+        />
 
         {/* 下部固定ログアウト */}
         <SheetFooter className="mt-auto">
