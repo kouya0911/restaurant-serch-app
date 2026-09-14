@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { LoaderCircle } from "lucide-react"
+import { ExternalLink, LoaderCircle, MapPin } from "lucide-react"
 import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantActions"
 import { PlaceDetailsAll } from "@/types"
 
@@ -139,6 +139,30 @@ export default function RestaurantDetailModal({
                 </ul>
               </div>
             )}
+
+            <div className="flex flex-col gap-2 pt-1">
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurantName ?? "")}&query_place_id=${encodeURIComponent(placeId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Googleマップで開く
+                </a>
+              </Button>
+
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${restaurantName ?? ""} site:tabelog.com`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  食べログで探す
+                </a>
+              </Button>
+            </div>
           </div>
         )}
 
