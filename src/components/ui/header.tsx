@@ -11,7 +11,7 @@ async function Header() {
     <header className="bg-background fixed top-0 left-0 w-full z-50 border-b">
       <div className="flex flex-col md:flex-row md:items-center p-4 md:h-16 gap-3 md:gap-4 max-w-[1920px] mx-auto">
 
-        {/* 上段: ロゴ・メニュー・食べログリンク */}
+        {/* 上段: ロゴ・メニュー */}
         <div className="flex items-center justify-between w-full md:w-auto">
           <div className="flex items-center gap-4">
             <MenuSheet />
@@ -19,14 +19,6 @@ async function Header() {
               <Link href={"/"}>Restaurants search APP</Link>
             </div>
           </div>
-          <a
-            href="https://tabelog.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline text-xs md:text-sm md:hidden"
-          >
-            食べログ
-          </a>
         </div>
 
         {/* 下段（PC時は右側）: 検索・住所等 */}
