@@ -95,10 +95,10 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Copy, Check, Heart as HeartIcon } from "lucide-react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Restaurant } from "@/types"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
+import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
 
 interface RestaurantCardProps {
   restaurant: Restaurant
@@ -109,6 +109,7 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const [isFav, setIsFav] = useState(false)
   const [loadingFav, setLoadingFav] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   // supabase ブラウザクライアントを作る
   const supabase = createBrowserClient()
@@ -180,10 +181,18 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
 
   return (
     <div className="relative">
-      {/* 安全に空文字を渡す */}
-      <Link href={`/restaurants/${encodeURIComponent(restaurant.restaurantName ?? "")}`} className="absolute inset-0 z-10" />
-
-      <div className="relative aspect-video rounded-lg overflow-hidden">
+      <div
+        className="relative aspect-video rounded-lg overflow-hidden cursor-pointer"
+        onClick={() => setIsDetailOpen(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setIsDetailOpen(true)
+          }
+        }}
+      >
         <Image
           className="object-cover"
           src={restaurant.photoUrl}
@@ -194,17 +203,41 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
       </div>
 
       <div className="flex justify-between items-center mt-2 z-20 relative gap-2">
-        <p className="font-bold">{restaurant.restaurantName}</p>
+        <p
+          className="font-bold cursor-pointer"
+          onClick={() => setIsDetailOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              setIsDetailOpen(true)
+            }
+          }}
+        >
+          {restaurant.restaurantName}
+        </p>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleCopy} className="h-6 w-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCopy()
+            }}
+            className="h-6 w-6"
+          >
             {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-gray-500" />}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleFavorite}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleFavorite()
+            }}
             className="h-6 w-6"
             aria-pressed={isFav}
             disabled={loadingFav}
@@ -216,6 +249,13 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
           </Button>
         </div>
       </div>
+
+      <RestaurantDetailModal
+        placeId={restaurant.id}
+        restaurantName={restaurant.restaurantName}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+      />
     </div>
   )
 }
