@@ -21,17 +21,22 @@ interface RestaurantDetailModalProps {
   onClose: () => void
 }
 
-const PRICE_LEVEL_LABELS: Record<string, string> = {
-  PRICE_LEVEL_INEXPENSIVE: "¥",
-  PRICE_LEVEL_MODERATE: "¥¥",
-  PRICE_LEVEL_EXPENSIVE: "¥¥¥",
-  PRICE_LEVEL_VERY_EXPENSIVE: "¥¥¥¥",
+interface PriceLevelInfo {
+  symbol: string
+  label: string
+}
+
+const PRICE_LEVEL_INFO: Record<string, PriceLevelInfo> = {
+  PRICE_LEVEL_INEXPENSIVE: { symbol: "¥", label: "安い" },
+  PRICE_LEVEL_MODERATE: { symbol: "¥¥", label: "普通" },
+  PRICE_LEVEL_EXPENSIVE: { symbol: "¥¥¥", label: "やや高め" },
+  PRICE_LEVEL_VERY_EXPENSIVE: { symbol: "¥¥¥¥", label: "高級" },
   // PRICE_LEVEL_FREE, PRICE_LEVEL_UNSPECIFIED などは意図的に含めない → 表示なし
 }
 
-function formatPriceLevel(priceLevel?: string): string | null {
+function formatPriceLevel(priceLevel?: string): PriceLevelInfo | null {
   if (!priceLevel) return null
-  return PRICE_LEVEL_LABELS[priceLevel] ?? null
+  return PRICE_LEVEL_INFO[priceLevel] ?? null
 }
 
 export default function RestaurantDetailModal({
@@ -75,7 +80,7 @@ export default function RestaurantDetailModal({
     }
   }, [isOpen, placeId])
 
-  const priceLabel = formatPriceLevel(details?.priceLevel)
+  const priceInfo = formatPriceLevel(details?.priceLevel)
   const openNow = details?.regularOpeningHours?.openNow
   const weekdayDescriptions = details?.regularOpeningHours?.weekdayDescriptions
 
@@ -114,9 +119,12 @@ export default function RestaurantDetailModal({
                   {openNow ? "営業中" : "営業時間外"}
                 </span>
               )}
-              {priceLabel && (
+              {priceInfo && (
                 <span className="text-sm font-semibold text-muted-foreground">
-                  {priceLabel}
+                  {priceInfo.symbol}
+                  <span className="ml-1 text-xs font-normal text-muted-foreground/70">
+                    （{priceInfo.label}）
+                  </span>
                 </span>
               )}
             </div>
