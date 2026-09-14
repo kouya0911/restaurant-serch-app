@@ -37,14 +37,6 @@ async function Header() {
           <div className="flex-1 w-full">
             <PlaceSearchBar lat={lat} Ing={Ing} />
           </div>
-          <a
-            href="https://tabelog.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline text-sm hidden md:block shrink-0"
-          >
-            食べログで検索する
-          </a>
         </div>
 
       </div>
