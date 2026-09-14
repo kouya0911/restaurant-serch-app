@@ -84,16 +84,10 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
     }
 
     const handleSelectSuggestion = (suggestion: RestaurantSuggestion) => {
-        if (suggestion.type === "placePrediction") {
-            router.push(
-                `/restaurant/${suggestion.placeId}?sesstionToken=${sessionToken}`
-            );
-        } else {
-            router.push(
-                `/search?restaurant=${suggestion.placeName}`
-            );
-            setSessionToken(uuidv4());
-        }
+        router.push(
+            `/search?restaurant=${encodeURIComponent(suggestion.placeName)}`
+        );
+        setSessionToken(uuidv4());
         setOpen(false);
     }
 
@@ -101,7 +95,7 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
         if (!inputText.trim()) return;
         if (e.key === "Enter") {
             router.push(
-                `/search?restaurant=${inputText}`
+                `/search?restaurant=${encodeURIComponent(inputText)}`
             );
             setOpen(false);
         }
