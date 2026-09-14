@@ -326,6 +326,13 @@ function shouldMock() {
   return false;
 }
 
+/**
+ * 実写真を取得するか(falseなら常にNo Image固定)
+ */
+export function shouldFetchPhotos() {
+  return process.env.ENABLE_PLACE_PHOTOS === 'true';
+}
+
 export async function fetchRestaurants(lat: number, Ing: number) {
   if (shouldMock()) {
     console.log("[api] Mocking fetchRestaurants");
