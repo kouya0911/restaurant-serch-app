@@ -94,11 +94,12 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import { Copy, Check, Heart as HeartIcon } from "lucide-react"
+import { Copy, Check, Heart as HeartIcon, Ticket, TicketCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Restaurant } from "@/types"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
 import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
+import { useLottery } from "@/components/ui/lottery-provider"
 
 interface RestaurantCardProps {
   restaurant: Restaurant
@@ -110,6 +111,8 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const [loadingFav, setLoadingFav] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const { addCandidate, isCandidate } = useLottery()
+  const isInLottery = isCandidate(restaurant.id)
 
   // supabase ブラウザクライアントを作る
   const supabase = createBrowserClient()
@@ -246,6 +249,25 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
             <HeartIcon
               className={`h-4 w-4 transition-colors ${isFav ? "text-red-500 fill-red-500" : "text-gray-500"}`}
             />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation()
+              addCandidate(restaurant)
+            }}
+            className="h-6 w-6"
+            disabled={isInLottery}
+            aria-pressed={isInLottery}
+            title={isInLottery ? "追加済み" : "くじびきに追加"}
+          >
+            {isInLottery ? (
+              <TicketCheck className="h-4 w-4 text-green-500" />
+            ) : (
+              <Ticket className="h-4 w-4 text-gray-500" />
+            )}
           </Button>
         </div>
       </div>
