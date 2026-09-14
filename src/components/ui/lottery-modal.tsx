@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { LoaderCircle, Trash2 } from "lucide-react"
+import { Check, Copy, ExternalLink, LoaderCircle, MapPin, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,7 @@ export default function LotteryModal({ isOpen, onClose }: LotteryModalProps) {
   const { candidates, removeCandidate } = useLottery()
   const [phase, setPhase] = useState<LotteryPhase>("idle")
   const [result, setResult] = useState<Restaurant | null>(null)
+  const [copied, setCopied] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // モーダルを閉じたら次回は候補一覧からやり直せるようリセットする(候補自体は消さない)
@@ -50,6 +51,7 @@ export default function LotteryModal({ isOpen, onClose }: LotteryModalProps) {
       }
       setPhase("idle")
       setResult(null)
+      setCopied(false)
     }
   }, [isOpen])
 
@@ -71,6 +73,13 @@ export default function LotteryModal({ isOpen, onClose }: LotteryModalProps) {
       setPhase("result")
       timeoutRef.current = null
     }, DRAW_DURATION_MS)
+  }
+
+  const handleCopyResult = async () => {
+    if (!result?.restaurantName) return
+    await navigator.clipboard.writeText(result.restaurantName)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   return (
@@ -138,7 +147,44 @@ export default function LotteryModal({ isOpen, onClose }: LotteryModalProps) {
             <p className="text-center text-lg font-bold">
               {result.restaurantName} に決まりました！
             </p>
-            {/* TODO: ステップ4-bでコピー・外部リンクボタンをここに追加する */}
+            <div className="flex w-full flex-col gap-2">
+              <Button variant="outline" className="w-full" onClick={handleCopyResult}>
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 text-green-500" />
+                    コピーしました
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    店名をコピー
+                  </>
+                )}
+              </Button>
+
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.restaurantName ?? "")}&query_place_id=${encodeURIComponent(result.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Googleマップで開く
+                </a>
+              </Button>
+
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${result.restaurantName ?? ""} site:tabelog.com`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  食べログで探す
+                </a>
+              </Button>
+            </div>
+
             <DialogFooter>
               <Button
                 onClick={() => {
