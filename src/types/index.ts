@@ -49,10 +49,22 @@ export interface PlaceAutoCompleteResult {
 
 export interface GooglePlacesDetailsAPIResponse {
     location?: {latitude?: number, longitude?: number}
+    priceLevel?: string; // e.g. "PRICE_LEVEL_MODERATE"
+    regularOpeningHours?: {
+        openNow?: boolean;
+        weekdayDescriptions?: string[];
+        periods?: unknown[];
+    };
 }
 
 export interface PlaceDetailsAll {
         location?: { latitude?: number, longitude?: number}
+        priceLevel?: string;
+        regularOpeningHours?: {
+            openNow?: boolean;
+            weekdayDescriptions?: string[];
+            periods?: unknown[];
+        };
     }
 
 export interface RestaurantSuggestion {

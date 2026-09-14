@@ -573,6 +573,12 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     if (fields.includes("location") && (data as any).location) {
       results.location = (data as any).location;
     }
+    if (fields.includes("priceLevel") && (data as any).priceLevel) {
+      results.priceLevel = (data as any).priceLevel;
+    }
+    if (fields.includes("regularOpeningHours") && (data as any).regularOpeningHours) {
+      results.regularOpeningHours = (data as any).regularOpeningHours;
+    }
 
     return { data: results };
   } catch (err) {
