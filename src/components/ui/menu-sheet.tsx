@@ -208,7 +208,7 @@ export default function Menusheet() {
 
       const { data, error } = await supabase
         .from("favorites" as any)
-        .select("id, restaurant_name")
+        .select("id, restaurant_name, place_id")
         .eq("user_id", user.id)
         .order("id", { ascending: false })
 

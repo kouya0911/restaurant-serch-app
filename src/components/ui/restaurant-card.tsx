@@ -130,13 +130,13 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
   }, [restaurant.restaurantName])
 
   const checkFavorite = async (uid: string) => {
-    if (!restaurant.restaurantName) return
+    if (!restaurant.id) return
     const { data, error } = await supabase
       // 型が未定義のテーブルに対する暫定回避（後で types を更新してください）
       .from("favorites" as any)
       .select("id")
       .eq("user_id", uid)
-      .eq("restaurant_name", restaurant.restaurantName)
+      .eq("place_id", restaurant.id)
       .limit(1)
 
     if (!error && data && data.length > 0) {
@@ -162,8 +162,8 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
       if (!isFav) {
         const { error } = await supabase
           .from("favorites" as any)
-          .insert([{ user_id: userId, restaurant_name: restaurant.restaurantName }])
-        
+          .insert([{ user_id: userId, restaurant_name: restaurant.restaurantName, place_id: restaurant.id }])
+
         if (error) throw error
         setIsFav(true)
         window.dispatchEvent(new CustomEvent("favoritesChanged"))
@@ -171,7 +171,7 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
         const { error } = await supabase
           .from("favorites" as any)
           .delete()
-          .match({ user_id: userId, restaurant_name: restaurant.restaurantName })
+          .match({ user_id: userId, place_id: restaurant.id })
         if (error) throw error
         setIsFav(false)
         window.dispatchEvent(new CustomEvent("favoritesChanged"))
