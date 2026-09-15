@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, LoaderCircle, MapPin } from "lucide-react"
+import { Check, Copy, ExternalLink, LoaderCircle, MapPin } from "lucide-react"
 import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantActions"
 import { PlaceDetailsAll } from "@/types"
 
@@ -48,6 +48,13 @@ export default function RestaurantDetailModal({
   const [isLoading, setIsLoading] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [details, setDetails] = useState<PlaceDetailsAll | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(restaurantName ?? "")
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -161,6 +168,20 @@ export default function RestaurantDetailModal({
                   <ExternalLink className="h-4 w-4" />
                   食べログで探す
                 </a>
+              </Button>
+
+              <Button variant="outline" className="w-full" onClick={handleCopy}>
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 text-green-500" />
+                    コピーしました
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    店名をコピー
+                  </>
+                )}
               </Button>
             </div>
           </div>
