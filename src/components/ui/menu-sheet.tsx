@@ -180,7 +180,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Menu, Ticket } from "lucide-react"
+import { Menu, Ticket, Trash2 } from "lucide-react"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -193,6 +193,7 @@ export default function Menusheet() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [favorites, setFavorites] = useState<any[]>([])
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const { candidates } = useLottery()
   const [isLotteryOpen, setIsLotteryOpen] = useState(false)
 
@@ -207,7 +208,7 @@ export default function Menusheet() {
 
       const { data, error } = await supabase
         .from("favorites" as any)
-        .select("restaurant_name")
+        .select("id, restaurant_name")
         .eq("user_id", user.id)
         .order("id", { ascending: false })
 
@@ -233,6 +234,25 @@ export default function Menusheet() {
       supabase.removeChannel(channel)
     }
   }, [])
+
+  const handleDelete = async (id: number) => {
+    if (deletingId !== null) return
+    setDeletingId(id)
+    try {
+      const { error } = await supabase
+        .from("favorites" as any)
+        .delete()
+        .eq("id", id)
+
+      if (error) {
+        console.error("favorite delete error:", error)
+        return
+      }
+      setFavorites((prev) => prev.filter((f) => f.id !== id))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <Sheet onOpenChange={(open) => { if (!open) setIsLotteryOpen(false) }}>
@@ -270,12 +290,22 @@ export default function Menusheet() {
             <p className="text-gray-500 text-sm">まだお気に入りがありません</p>
           ) : (
             <ul className="space-y-2">
-              {favorites.slice(0, 10).map((fav, i) => (
+              {favorites.slice(0, 10).map((fav) => (
                 <li
-                  key={i}
-                  className="text-sm text-gray-800 border-b pb-1 border-gray-200"
+                  key={fav.id}
+                  className="text-sm text-gray-800 border-b pb-1 border-gray-200 flex items-center justify-between gap-2"
                 >
-                  {fav.restaurant_name}
+                  <span className="truncate">{fav.restaurant_name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0"
+                    onClick={() => handleDelete(fav.id)}
+                    disabled={deletingId === fav.id}
+                    title="お気に入りから削除"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                  </Button>
                 </li>
               ))}
             </ul>
