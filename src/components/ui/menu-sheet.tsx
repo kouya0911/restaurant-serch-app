@@ -218,18 +218,6 @@ export default function Menusheet() {
 
     loadData()
 
-    const channel = supabase
-      .channel('favorites')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'favorites', filter: `user_id=eq.${user?.id}` },
-        payload => {
-          // データが変わったら再取得
-          loadData()
-        }
-      )
-      .subscribe()
-
     // 同一タブ内: restaurant-card側の追加/削除を即時反映
     const handleFavoritesChanged = () => {
       loadData()
@@ -237,7 +225,6 @@ export default function Menusheet() {
     window.addEventListener('favoritesChanged', handleFavoritesChanged)
 
     return () => {
-      supabase.removeChannel(channel)
       window.removeEventListener('favoritesChanged', handleFavoritesChanged)
     }
   }, [])
