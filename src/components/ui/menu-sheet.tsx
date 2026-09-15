@@ -230,8 +230,15 @@ export default function Menusheet() {
       )
       .subscribe()
 
+    // 同一タブ内: restaurant-card側の追加/削除を即時反映
+    const handleFavoritesChanged = () => {
+      loadData()
+    }
+    window.addEventListener('favoritesChanged', handleFavoritesChanged)
+
     return () => {
       supabase.removeChannel(channel)
+      window.removeEventListener('favoritesChanged', handleFavoritesChanged)
     }
   }, [])
 

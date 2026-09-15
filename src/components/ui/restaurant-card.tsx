@@ -166,6 +166,7 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
         
         if (error) throw error
         setIsFav(true)
+        window.dispatchEvent(new CustomEvent("favoritesChanged"))
       } else {
         const { error } = await supabase
           .from("favorites" as any)
@@ -173,6 +174,7 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
           .match({ user_id: userId, restaurant_name: restaurant.restaurantName })
         if (error) throw error
         setIsFav(false)
+        window.dispatchEvent(new CustomEvent("favoritesChanged"))
       }
     } catch (err: any) {
       console.error("favorite error:", err?.message || err)
