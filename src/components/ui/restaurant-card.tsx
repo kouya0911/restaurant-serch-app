@@ -94,7 +94,7 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import { Copy, Check, Heart as HeartIcon, Ticket, TicketCheck } from "lucide-react"
+import { Heart as HeartIcon, Ticket, TicketCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Restaurant } from "@/types"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -106,7 +106,6 @@ interface RestaurantCardProps {
 }
 
 export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
-  const [copied, setCopied] = useState(false)
   const [isFav, setIsFav] = useState(false)
   const [loadingFav, setLoadingFav] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -144,12 +143,6 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
     } else {
       setIsFav(false)
     }
-  }
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(restaurant.restaurantName ?? "")
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
   }
 
   const toggleFavorite = async () => {
@@ -224,18 +217,6 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
         </p>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleCopy()
-            }}
-            className="h-6 w-6"
-          >
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-gray-500" />}
-          </Button>
-
           <Button
             variant="ghost"
             size="icon"
