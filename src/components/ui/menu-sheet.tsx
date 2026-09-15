@@ -180,7 +180,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Menu, Ticket, Trash2 } from "lucide-react"
+import { Menu, Ticket, TicketCheck, Trash2 } from "lucide-react"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -197,7 +197,7 @@ export default function Menusheet() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [selectedFavorite, setSelectedFavorite] = useState<any | null>(null)
   const [isFavDetailOpen, setIsFavDetailOpen] = useState(false)
-  const { candidates } = useLottery()
+  const { candidates, addCandidate, isCandidate } = useLottery()
   const [isLotteryOpen, setIsLotteryOpen] = useState(false)
 
   useEffect(() => {
@@ -297,19 +297,44 @@ export default function Menusheet() {
                   }}
                 >
                   <span className="truncate">{fav.restaurant_name}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(fav.id)
-                    }}
-                    disabled={deletingId === fav.id}
-                    title="お気に入りから削除"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        addCandidate({
+                          id: fav.place_id,
+                          restaurantName: fav.restaurant_name,
+                          // favoritesは写真を保存していないため空文字。くじびきモーダルの描画では未使用
+                          photoUrl: "",
+                        })
+                      }}
+                      disabled={isCandidate(fav.place_id)}
+                      aria-pressed={isCandidate(fav.place_id)}
+                      title={isCandidate(fav.place_id) ? "追加済み" : "くじびきに追加"}
+                    >
+                      {isCandidate(fav.place_id) ? (
+                        <TicketCheck className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Ticket className="h-3.5 w-3.5 text-gray-400" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(fav.id)
+                      }}
+                      disabled={deletingId === fav.id}
+                      title="お気に入りから削除"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
