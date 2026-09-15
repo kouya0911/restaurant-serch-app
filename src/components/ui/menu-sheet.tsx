@@ -188,12 +188,15 @@ import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/app/(auth)/login/actions"
 import LotteryModal from "@/components/ui/lottery-modal"
 import { useLottery } from "@/components/ui/lottery-provider"
+import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
 
 export default function Menusheet() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [favorites, setFavorites] = useState<any[]>([])
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [selectedFavorite, setSelectedFavorite] = useState<any | null>(null)
+  const [isFavDetailOpen, setIsFavDetailOpen] = useState(false)
   const { candidates } = useLottery()
   const [isLotteryOpen, setIsLotteryOpen] = useState(false)
 
@@ -287,14 +290,21 @@ export default function Menusheet() {
               {favorites.slice(0, 10).map((fav) => (
                 <li
                   key={fav.id}
-                  className="text-sm text-gray-800 border-b pb-1 border-gray-200 flex items-center justify-between gap-2"
+                  className="text-sm text-gray-800 border-b pb-1 border-gray-200 flex items-center justify-between gap-2 cursor-pointer"
+                  onClick={() => {
+                    setSelectedFavorite(fav)
+                    setIsFavDetailOpen(true)
+                  }}
                 >
                   <span className="truncate">{fav.restaurant_name}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 shrink-0"
-                    onClick={() => handleDelete(fav.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete(fav.id)
+                    }}
                     disabled={deletingId === fav.id}
                     title="お気に入りから削除"
                   >
@@ -325,6 +335,13 @@ export default function Menusheet() {
         <LotteryModal
           isOpen={isLotteryOpen}
           onClose={() => setIsLotteryOpen(false)}
+        />
+
+        <RestaurantDetailModal
+          placeId={selectedFavorite?.place_id ?? ""}
+          restaurantName={selectedFavorite?.restaurant_name}
+          isOpen={isFavDetailOpen}
+          onClose={() => setIsFavDetailOpen(false)}
         />
 
         {/* 下部固定ログアウト */}
