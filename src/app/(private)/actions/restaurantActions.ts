@@ -3,5 +3,5 @@
 import { getPlaceDetails } from "@/lib/restaurants/api"
 
 export async function getRestaurantDetailsAction(placeId: string) {
-  return getPlaceDetails(placeId, ["priceLevel", "regularOpeningHours"])
+  return getPlaceDetails(placeId, ["priceLevel", "regularOpeningHours", "location"])
 }
