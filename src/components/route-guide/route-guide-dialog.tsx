@@ -31,6 +31,19 @@ import RouteGuideMap from "./route-guide-map"
 
 type Step = "input" | "loading" | "result" | "error"
 
+// サーバーから返ってくる技術的なエラー文字列（Overpassの504/XML断片など）を、
+// そのまま画面に出さずユーザー向けの日本語メッセージに変換する。
+// 生の詳細は呼び出し側で console にだけ残す。
+function toFriendlyErrorMessage(rawMessage: string | undefined): string {
+  if (rawMessage?.includes("Overpass")) {
+    return "近くの目印情報を取得できませんでした。少し時間をおいて「もう一度試す」を押してください。"
+  }
+  if (rawMessage?.includes("turnFacts")) {
+    return "出発地と目的地が近すぎるようです。出発地を少し離れた場所に変えてみてください。"
+  }
+  return "道案内の作成に失敗しました。もう一度お試しください。"
+}
+
 interface GuidanceStepData {
   legNo: number
   text: string
@@ -120,7 +133,8 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
       })
       const data = await res.json()
       if (!res.ok || data.error) {
-        setErrorMessage(data.error || "道案内の生成に失敗しました")
+        console.error("[RouteGuideDialog] generate API error:", data.error)
+        setErrorMessage(toFriendlyErrorMessage(data.error))
         setStep("error")
         return
       }
