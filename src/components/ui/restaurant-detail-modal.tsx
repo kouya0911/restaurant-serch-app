@@ -10,9 +10,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Check, Copy, ExternalLink, LoaderCircle, MapPin } from "lucide-react"
+import { Check, Copy, ExternalLink, LoaderCircle, MapPin, Route } from "lucide-react"
 import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantActions"
 import { PlaceDetailsAll } from "@/types"
+import RouteGuideDialog from "@/components/route-guide/route-guide-dialog"
 
 interface RestaurantDetailModalProps {
   placeId: string
@@ -49,6 +50,7 @@ export default function RestaurantDetailModal({
   const [hasError, setHasError] = useState(false)
   const [details, setDetails] = useState<PlaceDetailsAll | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showRouteGuide, setShowRouteGuide] = useState(false)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(restaurantName ?? "")
@@ -90,9 +92,11 @@ export default function RestaurantDetailModal({
   const priceInfo = formatPriceLevel(details?.priceLevel)
   const openNow = details?.regularOpeningHours?.openNow
   const weekdayDescriptions = details?.regularOpeningHours?.weekdayDescriptions
+  const location = details?.location
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+    <>
+    <Dialog open={isOpen && !showRouteGuide} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{restaurantName ?? "レストラン詳細"}</DialogTitle>
@@ -183,6 +187,17 @@ export default function RestaurantDetailModal({
                   </>
                 )}
               </Button>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={location?.latitude == null || location?.longitude == null}
+                title={location?.latitude == null || location?.longitude == null ? "座標情報を取得できませんでした" : undefined}
+                onClick={() => setShowRouteGuide(true)}
+              >
+                <Route className="h-4 w-4" />
+                ドコいく道案内
+              </Button>
             </div>
           </div>
         )}
@@ -192,5 +207,14 @@ export default function RestaurantDetailModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {location?.latitude != null && location?.longitude != null && (
+      <RouteGuideDialog
+        open={showRouteGuide}
+        onClose={() => setShowRouteGuide(false)}
+        goal={{ lat: location.latitude, lng: location.longitude }}
+        goalName={restaurantName}
+      />
+    )}
+    </>
   )
 }

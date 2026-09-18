@@ -1,0 +1,299 @@
+"use client"
+
+// src/components/route-guide/route-guide-dialog.tsx
+// 「ドコいく道案内」の出発地入力〜地図/案内文表示までをまとめたDialog。
+// 既存の restaurant-detail-modal.tsx からボタン経由で開く、独立した新規コンポーネント。
+
+import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Button } from "@/components/ui/button"
+import { LoaderCircle, MapPin, RotateCcw } from "lucide-react"
+import { useDebouncedCallback } from "use-debounce"
+import { v4 as uuidv4 } from "uuid"
+import { AddressSuggestion } from "@/types"
+import { resolvePlaceLocationAction } from "@/app/(private)/actions/routeGuideActions"
+import { LatLng, MapBbox, Road, RouteGuideTurnFact } from "@/lib/route-guide/types"
+import RouteGuideMap from "./route-guide-map"
+
+type Step = "input" | "loading" | "result" | "error"
+
+interface GuidanceStepData {
+  legNo: number
+  text: string
+}
+
+interface RouteGuideApiResult {
+  routeCoords: LatLng[]
+  roads: Road[]
+  bbox: MapBbox
+  turnFacts: RouteGuideTurnFact[]
+  guidance: {
+    steps: GuidanceStepData[] | null
+    warning?: string
+  }
+}
+
+interface StartPoint {
+  lat: number
+  lng: number
+  name: string
+}
+
+export interface RouteGuideDialogProps {
+  open: boolean
+  onClose: () => void
+  goal: LatLng
+  goalName?: string
+}
+
+export default function RouteGuideDialog({ open, onClose, goal, goalName }: RouteGuideDialogProps) {
+  const [step, setStep] = useState<Step>("input")
+  const [inputText, setInputText] = useState("")
+  const [sessionToken, setSessionToken] = useState(() => uuidv4())
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [startPoint, setStartPoint] = useState<StartPoint | null>(null)
+  const [result, setResult] = useState<RouteGuideApiResult | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const fetchSuggestions = useDebouncedCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([])
+      setIsSearching(false)
+      return
+    }
+    try {
+      const res = await fetch(`/api/address/autocomplete?input=${encodeURIComponent(query)}&sessionToken=${sessionToken}`)
+      const data = await res.json()
+      if (!res.ok || !Array.isArray(data)) {
+        console.error("[RouteGuideDialog] autocomplete error:", data)
+        setSuggestions([])
+        return
+      }
+      setSuggestions(data)
+    } catch (err) {
+      console.error("[RouteGuideDialog] autocomplete fetch error:", err)
+      setSuggestions([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, 500)
+
+  function handleInputChange(value: string) {
+    setInputText(value)
+    if (!value.trim()) {
+      setSuggestions([])
+      setIsSearching(false)
+      return
+    }
+    setIsSearching(true)
+    fetchSuggestions(value)
+  }
+
+  async function generateGuide(start: StartPoint) {
+    setStep("loading")
+    setErrorMessage(null)
+    try {
+      const res = await fetch("/api/route-guide/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start: { lat: start.lat, lng: start.lng },
+          goal,
+          startName: start.name,
+          goalName,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setErrorMessage(data.error || "道案内の生成に失敗しました")
+        setStep("error")
+        return
+      }
+      setResult(data)
+      setStep("result")
+    } catch (err) {
+      console.error("[RouteGuideDialog] generate error:", err)
+      setErrorMessage("道案内の生成に失敗しました。通信状況をご確認のうえ、もう一度お試しください。")
+      setStep("error")
+    }
+  }
+
+  async function handleSelectSuggestion(suggestion: AddressSuggestion) {
+    setStep("loading")
+    setErrorMessage(null)
+    try {
+      const locationRes = await resolvePlaceLocationAction(suggestion.placeId, sessionToken)
+      setSessionToken(uuidv4()) // 次の検索セッション用にトークンを更新
+
+      if ("error" in locationRes) {
+        console.error("[RouteGuideDialog] resolvePlaceLocation error:", locationRes.error)
+        setErrorMessage("出発地の位置情報を取得できませんでした")
+        setStep("error")
+        return
+      }
+
+      const location = locationRes.data.location
+      if (location?.latitude == null || location?.longitude == null) {
+        setErrorMessage("出発地の位置情報を取得できませんでした")
+        setStep("error")
+        return
+      }
+
+      const start: StartPoint = { lat: location.latitude, lng: location.longitude, name: suggestion.placeName }
+      setStartPoint(start)
+      await generateGuide(start)
+    } catch (err) {
+      console.error("[RouteGuideDialog] handleSelectSuggestion error:", err)
+      setErrorMessage("出発地の位置情報を取得できませんでした")
+      setStep("error")
+    }
+  }
+
+  function handleRetry() {
+    if (startPoint) {
+      generateGuide(startPoint)
+    } else {
+      setStep("input")
+    }
+  }
+
+  function resetState() {
+    setStep("input")
+    setInputText("")
+    setSuggestions([])
+    setIsSearching(false)
+    setStartPoint(null)
+    setResult(null)
+    setErrorMessage(null)
+  }
+
+  function handleClose() {
+    onClose()
+    resetState() // 次回開いたときは出発地入力からやり直す
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>ドコいく道案内{goalName ? ` - ${goalName}まで` : ""}</DialogTitle>
+          <DialogDescription className="sr-only">
+            出発地を入力すると、手書き風の地図と道案内を表示します
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "input" && (
+          <Command shouldFilter={false}>
+            <div className="bg-muted mb-2">
+              <CommandInput
+                value={inputText}
+                onValueChange={handleInputChange}
+                placeholder="出発地を入力...（駅名・住所など）"
+              />
+            </div>
+            {/* TODO(将来の改善候補・今回は見送り): 「現在地を使う」ボタン
+                （navigator.geolocationで取得した座標をそのままstart.latlngとして使う）。
+                今回は出発地の入力（検索）のみ対応。 */}
+            <CommandList>
+              {isSearching && (
+                <div className="p-3 text-sm text-muted-foreground">
+                  <LoaderCircle className="animate-spin inline-block mr-2 h-4 w-4" />
+                  検索中…
+                </div>
+              )}
+              {!isSearching && inputText && suggestions.length === 0 && (
+                <CommandEmpty>候補が見つかりません。</CommandEmpty>
+              )}
+              {!isSearching &&
+                suggestions.map((s) => (
+                  <CommandItem key={s.placeId} onSelect={() => handleSelectSuggestion(s)} className="p-4">
+                    <MapPin />
+                    <div className="ml-3">
+                      <p className="font-bold">{s.placeName}</p>
+                      <p className="text-muted-foreground">{s.address_text}</p>
+                    </div>
+                  </CommandItem>
+                ))}
+            </CommandList>
+          </Command>
+        )}
+
+        {step === "loading" && (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+            <LoaderCircle className="animate-spin h-6 w-6" />
+            地図と道案内を作成しています…
+          </div>
+        )}
+
+        {step === "error" && (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <p className="text-destructive text-center text-sm">{errorMessage ?? "エラーが発生しました"}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleRetry}>
+                <RotateCcw className="h-4 w-4" />
+                もう一度試す
+              </Button>
+              <Button variant="outline" onClick={() => setStep("input")}>
+                出発地を変更
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "result" && result && startPoint && (
+          <div className="space-y-4">
+            {result.guidance.warning && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                ⚠ {result.guidance.warning}
+              </div>
+            )}
+            <RouteGuideMap
+              routeCoords={result.routeCoords}
+              roads={result.roads}
+              bbox={result.bbox}
+              turnFacts={result.turnFacts}
+              start={{ lat: startPoint.lat, lng: startPoint.lng }}
+              goal={goal}
+              startName={startPoint.name}
+              goalName={goalName}
+            />
+            <ol className="space-y-2">
+              {(result.guidance.steps ?? []).map((s) => (
+                <li key={s.legNo} className="flex gap-3 items-start text-sm">
+                  <span className="flex-none w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                    {s.legNo}
+                  </span>
+                  <span className="pt-0.5">{s.text}</span>
+                </li>
+              ))}
+            </ol>
+            <Button variant="ghost" size="sm" onClick={() => setStep("input")}>
+              出発地を変更する
+            </Button>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
+            閉じる
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

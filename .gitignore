@@ -88,3 +88,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ドコいく道案内の移植元（参考資料）。アプリ本体には含めない
+/map/
