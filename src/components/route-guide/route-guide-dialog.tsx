@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from "uuid"
 import { AddressSuggestion } from "@/types"
 import { resolvePlaceLocationAction } from "@/app/(private)/actions/routeGuideActions"
 import { LatLng, MapBbox, Road, RouteGuideTurnFact } from "@/lib/route-guide/types"
+import { MAX_ROUTE_DISTANCE_M } from "@/lib/route-guide/constants"
 import RouteGuideMap from "./route-guide-map"
 
 type Step = "input" | "loading" | "result" | "error"
@@ -35,6 +36,10 @@ type Step = "input" | "loading" | "result" | "error"
 // そのまま画面に出さずユーザー向けの日本語メッセージに変換する。
 // 生の詳細は呼び出し側で console にだけ残す。
 function toFriendlyErrorMessage(rawMessage: string | undefined): string {
+  if (rawMessage?.includes("TOO_FAR")) {
+    const maxKm = MAX_ROUTE_DISTANCE_M / 1000
+    return `この道案内は徒歩で行ける範囲（約${maxKm}kmまで）向けです。もっと近い場所からお試しください。`
+  }
   if (rawMessage?.includes("Overpass")) {
     return "近くの目印情報を取得できませんでした。少し時間をおいて「もう一度試す」を押してください。"
   }

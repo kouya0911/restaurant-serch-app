@@ -7,13 +7,23 @@ import { getRouteCoords, getTurnPoints } from "./osrm";
 import { getLandmarks, getRoads } from "./overpass";
 import { describeManeuverShape, landmarkKey, selectLandmarkForTurn } from "./landmarks";
 import { calcMapBbox } from "./geo";
-import { GENERIC_LABELS } from "./constants";
+import { GENERIC_LABELS, MAX_ROUTE_DISTANCE_M } from "./constants";
 import { LatLng, RouteGuideData, RouteGuideTurnFact, SelectedTurn } from "./types";
 
 export * from "./types";
 
 export async function buildRouteGuideData(start: LatLng, goal: LatLng): Promise<RouteGuideData> {
   const { turns, segments } = await getTurnPoints(start, goal);
+
+  // 徒歩圏を超えるルートは、Overpass/OpenAIを呼ぶ前にここで打ち切る
+  // （重いAPI呼び出しの節約、およびOverpassの504対策も兼ねる）。
+  const totalDistanceM = segments.reduce((sum, m) => sum + m, 0);
+  if (totalDistanceM > MAX_ROUTE_DISTANCE_M) {
+    throw new Error(
+      `TOO_FAR: ルート距離が${Math.round(totalDistanceM)}mで上限(${MAX_ROUTE_DISTANCE_M}m)を超えています`
+    );
+  }
+
   const routeCoords = await getRouteCoords(start, goal);
   const bbox = calcMapBbox(routeCoords, start, goal);
 
