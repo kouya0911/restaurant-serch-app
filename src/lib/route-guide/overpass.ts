@@ -11,7 +11,16 @@ import { LANDMARK_TAG_KEYS, ROAD_CLASSES } from "./constants";
 import { Landmark, MapBbox, Road } from "./types";
 import { classifyLandmark } from "./landmarks";
 
-const OVERPASS_URL = "https://lz4.overpass-api.de/api/interpreter";
+// 昨日の本番移植時、混雑する公式インスタンスを避けてlz4ミラーに切り替えたところ
+// 成功したため、lz4を先頭に据えて公式→kumiの順でフォールバックする。
+const OVERPASS_MIRRORS = [
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+const MIRROR_RETRY_DELAY_MS = 500;
+const MIRROR_FETCH_TIMEOUT_MS = 15000;
 
 interface OverpassElement {
   type: string;
@@ -23,27 +32,65 @@ interface OverpassElement {
   tags?: Record<string, string>;
 }
 
-// TODO(本格運用前の宿題): Overpassの公開インスタンスは混雑時に504を返すことがある
-// （lz4ミラーでも発生しうる）。本番投入前に、リトライ処理と、失敗時にユーザーへ
-// 分かりやすいエラー表示を出す仕組みを追加する。
-async function overpassFetch(query: string): Promise<{ elements: OverpassElement[] }> {
-  const res = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      // 406対策としてAccept / User-Agentヘッダーが必須（元コードのコメントを踏襲）
-      Accept: "application/json",
-      "User-Agent": "doko-iku-map/0.1 (food-delivery-app)",
-    },
-    body: `data=${encodeURIComponent(query)}`,
-    next: { revalidate: 86400 },
-  });
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Overpassリクエストエラー: ${res.status} ${text.slice(0, 200)}`);
+async function overpassFetchFromMirror(
+  url: string,
+  query: string,
+): Promise<{ elements: OverpassElement[] }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), MIRROR_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        // 406対策としてAccept / User-Agentヘッダーが必須（元コードのコメントを踏襲）
+        Accept: "application/json",
+        "User-Agent": "doko-iku-map/0.1 (food-delivery-app)",
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      next: { revalidate: 86400 },
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${text.slice(0, 200)}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
+}
+
+// 公開Overpassインスタンスは混雑時に504を返すことがあるため、複数ミラーを
+// 順番に試し、失敗したら少し待って次のミラーにフォールバックする。
+// 全ミラーが失敗した場合のみエラーを投げる（メッセージにはユーザー向け表示の
+// 判定（route-guide-dialog.tsx）が拾えるよう "Overpass" を含める）。
+async function overpassFetch(query: string): Promise<{ elements: OverpassElement[] }> {
+  let lastError: unknown;
+
+  for (let i = 0; i < OVERPASS_MIRRORS.length; i++) {
+    const url = OVERPASS_MIRRORS[i];
+    try {
+      const data = await overpassFetchFromMirror(url, query);
+      console.log(`[overpass] 成功: ${url}`);
+      return data;
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(`[overpass] 失敗: ${url} (${message})`);
+      if (i < OVERPASS_MIRRORS.length - 1) {
+        await sleep(MIRROR_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  const lastMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`Overpassリクエストエラー: 全ミラーで失敗しました (${lastMessage})`);
 }
 
 function bboxToStr(bbox: MapBbox): string {
