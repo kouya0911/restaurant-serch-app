@@ -21,6 +21,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { LoaderCircle, MapPin, RotateCcw } from "lucide-react"
 import { useDebouncedCallback } from "use-debounce"
 import { v4 as uuidv4 } from "uuid"
@@ -208,7 +209,17 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent
+        className={cn(
+          // スマホ幅: 上寄せ配置＋画面高さに収まらない分だけダイアログ自体をスクロール可能にする。
+          // 現状は中央寄せ＋高さ無制限のため、画面の狭いスマホで中身（特にヘッダー直後の地図）が
+          // 画面外にはみ出し、スクロールもできず見切れることがあった。
+          "top-4 translate-y-0 max-h-[calc(100dvh-2rem)] overflow-y-auto",
+          // sm以上（PC相当）は元の中央寄せ・高さ無制限の見た目に完全に戻す（PCの表示は変更しない）
+          "sm:top-[50%] sm:translate-y-[-50%] sm:max-h-none sm:overflow-visible",
+          "sm:max-w-2xl"
+        )}
+      >
         <DialogHeader>
           <DialogTitle>ドコいく道案内{goalName ? ` - ${goalName}まで` : ""}</DialogTitle>
           <DialogDescription className="sr-only">
