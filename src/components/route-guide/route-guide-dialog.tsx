@@ -4,7 +4,7 @@
 // 「ドコいく道案内」の出発地入力〜地図/案内文表示までをまとめたDialog。
 // 既存の restaurant-detail-modal.tsx からボタン経由で開く、独立した新規コンポーネント。
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LoaderCircle, MapPin, RotateCcw } from "lucide-react"
+import { LoaderCircle, MapPin, Printer, RotateCcw } from "lucide-react"
 import { useDebouncedCallback } from "use-debounce"
 import { v4 as uuidv4 } from "uuid"
 import { AddressSuggestion } from "@/types"
@@ -88,6 +88,21 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   const [startPoint, setStartPoint] = useState<StartPoint | null>(null)
   const [result, setResult] = useState<RouteGuideApiResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // 印刷ダイアログを閉じた後（キャンセル含む）は必ず route-guide-printing を外し、
+  // 通常の画面表示に戻す
+  useEffect(() => {
+    function clearPrintingClass() {
+      document.body.classList.remove("route-guide-printing")
+    }
+    window.addEventListener("afterprint", clearPrintingClass)
+    return () => window.removeEventListener("afterprint", clearPrintingClass)
+  }, [])
+
+  function handlePrint() {
+    document.body.classList.add("route-guide-printing")
+    window.print()
+  }
 
   const fetchSuggestions = useDebouncedCallback(async (query: string) => {
     if (!query.trim()) {
@@ -217,10 +232,19 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
           "top-4 translate-y-0 max-h-[calc(100dvh-2rem)] overflow-y-auto",
           // sm以上（PC相当）は元の中央寄せ・高さ無制限の見た目に完全に戻す（PCの表示は変更しない）
           "sm:top-[50%] sm:translate-y-[-50%] sm:max-h-none sm:overflow-visible",
-          "sm:max-w-2xl"
+          "sm:max-w-2xl",
+          // 印刷時: fixed配置・高さ制限・枠線・影を解除し、.route-guide-print-areaが
+          // 紙面の左上に正しく配置されるようにする（画面表示には影響しない）。
+          // translate-x-0/y-0ではなくtranslate-noneにする必要がある点に注意:
+          // translateに0以外の"none"以外の値が残っていると、position:staticにしても
+          // CSS仕様上このDialogContentがabsolute配置の子(.route-guide-print-area)の
+          // containing blockになってしまい、紙面左上ではなくこの要素基準にずれる。
+          "print:static print:top-auto print:left-auto print:translate-none print:transform-none",
+          "print:max-h-none print:overflow-visible print:max-w-none print:w-full",
+          "print:border-0 print:shadow-none print:p-0 print:m-0 print:rounded-none print:gap-0"
         )}
       >
-        <DialogHeader>
+        <DialogHeader className="print:hidden">
           <DialogTitle>ドコいく道案内{goalName ? ` - ${goalName}まで` : ""}</DialogTitle>
           <DialogDescription className="sr-only">
             出発地を入力すると、手書き風の地図と道案内を表示します
@@ -288,37 +312,49 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
         {step === "result" && result && startPoint && (
           <div className="space-y-4">
             {result.guidance.warning && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 print:hidden">
                 ⚠ {result.guidance.warning}
               </div>
             )}
-            <RouteGuideMap
-              routeCoords={result.routeCoords}
-              roads={result.roads}
-              bbox={result.bbox}
-              turnFacts={result.turnFacts}
-              start={{ lat: startPoint.lat, lng: startPoint.lng }}
-              goal={goal}
-              startName={startPoint.name}
-              goalName={goalName}
-            />
-            <ol className="space-y-2">
-              {(result.guidance.steps ?? []).map((s) => (
-                <li key={s.legNo} className="flex gap-3 items-start text-sm">
-                  <span className="flex-none w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                    {s.legNo}
-                  </span>
-                  <span className="pt-0.5">{s.text}</span>
-                </li>
-              ))}
-            </ol>
-            <Button variant="ghost" size="sm" onClick={() => setStep("input")}>
+            {/* route-guide-print-area: 印刷時はこの中身（見出し・地図・番号付き案内文）だけを出す */}
+            <div className="route-guide-print-area space-y-4">
+              <h2 className="hidden print:block text-2xl font-bold mb-2">
+                {goalName ? `${goalName}まで` : "道案内"}
+              </h2>
+              <RouteGuideMap
+                routeCoords={result.routeCoords}
+                roads={result.roads}
+                bbox={result.bbox}
+                turnFacts={result.turnFacts}
+                start={{ lat: startPoint.lat, lng: startPoint.lng }}
+                goal={goal}
+                startName={startPoint.name}
+                goalName={goalName}
+              />
+              <ol className="space-y-2 print:space-y-3">
+                {(result.guidance.steps ?? []).map((s) => (
+                  <li key={s.legNo} className="flex gap-3 items-start text-sm print:text-lg">
+                    <span className="flex-none w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold print:w-8 print:h-8 print:text-base">
+                      {s.legNo}
+                    </span>
+                    <span className="pt-0.5">{s.text}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setStep("input")} className="print:hidden">
               出発地を変更する
             </Button>
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="print:hidden">
+          {step === "result" && (
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4" />
+              印刷
+            </Button>
+          )}
           <Button variant="outline" onClick={handleClose}>
             閉じる
           </Button>
