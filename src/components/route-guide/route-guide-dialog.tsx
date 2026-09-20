@@ -4,7 +4,8 @@
 // 「ドコいく道案内」の出発地入力〜地図/案内文表示までをまとめたDialog。
 // 既存の restaurant-detail-modal.tsx からボタン経由で開く、独立した新規コンポーネント。
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { toPng } from "html-to-image"
 import {
   Dialog,
   DialogContent,
@@ -22,13 +23,14 @@ import {
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LoaderCircle, MapPin, Printer, RotateCcw } from "lucide-react"
+import { ImageDown, LoaderCircle, MapPin, Printer, RotateCcw } from "lucide-react"
 import { useDebouncedCallback } from "use-debounce"
 import { v4 as uuidv4 } from "uuid"
 import { AddressSuggestion } from "@/types"
 import { resolvePlaceLocationAction } from "@/app/(private)/actions/routeGuideActions"
 import { LatLng, MapBbox, Road, RouteGuideTurnFact } from "@/lib/route-guide/types"
 import { MAX_ROUTE_DISTANCE_M } from "@/lib/route-guide/constants"
+import { useIsMobileViewport } from "@/hooks/use-is-mobile-viewport"
 import RouteGuideMap from "./route-guide-map"
 
 type Step = "input" | "loading" | "result" | "error"
@@ -88,6 +90,9 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   const [startPoint, setStartPoint] = useState<StartPoint | null>(null)
   const [result, setResult] = useState<RouteGuideApiResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSavingImage, setIsSavingImage] = useState(false)
+  const printAreaRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobileViewport()
 
   // 印刷ダイアログを閉じた後（キャンセル含む）は必ず route-guide-printing を外し、
   // 通常の画面表示に戻す
@@ -102,6 +107,36 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   function handlePrint() {
     document.body.classList.add("route-guide-printing")
     window.print()
+  }
+
+  // スマホ幅: 地図＋番号付き案内文（.route-guide-print-area）を1枚のPNGとして書き出し、保存させる。
+  // isSavingImage中は印刷用の拡大レイアウト(印刷時と同じテキスト/バッジサイズ)を一時的に適用してから撮影する。
+  async function handleSaveImage() {
+    const node = printAreaRef.current
+    if (!node || isSavingImage) return
+
+    setIsSavingImage(true)
+    try {
+      // isSavingImageのstate更新でDOM(拡大レイアウト)が反映されるのを待ってから撮影する
+      // (バックグラウンドタブ等ではrequestAnimationFrameが止まることがあるためsetTimeoutを使う)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await document.fonts.ready
+
+      const dataUrl = await toPng(node, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+      })
+
+      const link = document.createElement("a")
+      const safeName = (goalName ?? "道案内").replace(/[\\/:*?"<>|]/g, "")
+      link.download = `道案内_${safeName}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err) {
+      console.error("[RouteGuideDialog] handleSaveImage error:", err)
+    } finally {
+      setIsSavingImage(false)
+    }
   }
 
   const fetchSuggestions = useDebouncedCallback(async (query: string) => {
@@ -316,9 +351,14 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
                 ⚠ {result.guidance.warning}
               </div>
             )}
-            {/* route-guide-print-area: 印刷時はこの中身（見出し・地図・番号付き案内文）だけを出す */}
-            <div className="route-guide-print-area space-y-4">
-              <h2 className="hidden print:block text-2xl font-bold mb-2">
+            {/* route-guide-print-area: 印刷時・画像保存時はこの中身（見出し・地図・番号付き案内文）だけを出す */}
+            <div ref={printAreaRef} className="route-guide-print-area space-y-4">
+              <h2
+                className={cn(
+                  "hidden print:block text-2xl font-bold mb-2",
+                  isSavingImage && "block"
+                )}
+              >
                 {goalName ? `${goalName}まで` : "道案内"}
               </h2>
               <RouteGuideMap
@@ -331,10 +371,21 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
                 startName={startPoint.name}
                 goalName={goalName}
               />
-              <ol className="space-y-2 print:space-y-3">
+              <ol className={cn("space-y-2 print:space-y-3", isSavingImage && "space-y-3")}>
                 {(result.guidance.steps ?? []).map((s) => (
-                  <li key={s.legNo} className="flex gap-3 items-start text-sm print:text-lg">
-                    <span className="flex-none w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold print:w-8 print:h-8 print:text-base">
+                  <li
+                    key={s.legNo}
+                    className={cn(
+                      "flex gap-3 items-start text-sm print:text-lg",
+                      isSavingImage && "text-lg"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex-none w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold print:w-8 print:h-8 print:text-base",
+                        isSavingImage && "w-8 h-8 text-base"
+                      )}
+                    >
                       {s.legNo}
                     </span>
                     <span className="pt-0.5">{s.text}</span>
@@ -349,12 +400,21 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
         )}
 
         <DialogFooter className="print:hidden">
-          {step === "result" && (
+          {step === "result" && (isMobile ? (
+            <Button variant="outline" onClick={handleSaveImage} disabled={isSavingImage}>
+              {isSavingImage ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <ImageDown className="h-4 w-4" />
+              )}
+              画像として保存
+            </Button>
+          ) : (
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="h-4 w-4" />
               印刷
             </Button>
-          )}
+          ))}
           <Button variant="outline" onClick={handleClose}>
             閉じる
           </Button>
