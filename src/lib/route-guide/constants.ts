@@ -3,6 +3,10 @@
 
 export const TURN_RADIUS_M = 100; // 曲がり角の目印を探す半径（メートル）
 
+// 徒歩圏専用サービスとしての上限（メートル）。これを超えるルートは
+// OSRM/Overpass/OpenAIを呼ばず、その場で優しいメッセージを返して打ち切る。
+export const MAX_ROUTE_DISTANCE_M = 3000;
+
 // 目印候補として拾うタグ種別
 export const LANDMARK_TAG_KEYS = ["amenity", "shop", "leisure", "natural", "historic", "tourism"];
 
