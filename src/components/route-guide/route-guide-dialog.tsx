@@ -5,6 +5,7 @@
 // 既存の restaurant-detail-modal.tsx からボタン経由で開く、独立した新規コンポーネント。
 
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { toPng } from "html-to-image"
 import {
   Dialog,
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ImageDown, LoaderCircle, MapPin, Printer, RotateCcw } from "lucide-react"
+import { Image as ImageIcon, LoaderCircle, MapPin, Printer, RotateCcw, X } from "lucide-react"
 import { useDebouncedCallback } from "use-debounce"
 import { v4 as uuidv4 } from "uuid"
 import { AddressSuggestion } from "@/types"
@@ -91,7 +92,9 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   const [result, setResult] = useState<RouteGuideApiResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSavingImage, setIsSavingImage] = useState(false)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const printAreaRef = useRef<HTMLDivElement>(null)
+  const previewOverlayRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobileViewport()
 
   // 印刷ダイアログを閉じた後（キャンセル含む）は必ず route-guide-printing を外し、
@@ -109,9 +112,11 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
     window.print()
   }
 
-  // スマホ幅: 地図＋番号付き案内文（.route-guide-print-area）を1枚のPNGとして書き出し、保存させる。
+  // スマホ幅: 地図＋番号付き案内文（.route-guide-print-area）を1枚のPNGとして書き出し、画面に大きく表示する。
+  // iOSでは<a download>によるダウンロードが機能しないため、生成した画像をそのまま<img>で
+  // 表示し、ユーザーが長押しして「"写真"に追加」で保存する形にする。
   // isSavingImage中は印刷用の拡大レイアウト(印刷時と同じテキスト/バッジサイズ)を一時的に適用してから撮影する。
-  async function handleSaveImage() {
+  async function handleGenerateImage() {
     const node = printAreaRef.current
     if (!node || isSavingImage) return
 
@@ -127,13 +132,9 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
         pixelRatio: 2,
       })
 
-      const link = document.createElement("a")
-      const safeName = (goalName ?? "道案内").replace(/[\\/:*?"<>|]/g, "")
-      link.download = `道案内_${safeName}.png`
-      link.href = dataUrl
-      link.click()
+      setPreviewImageUrl(dataUrl)
     } catch (err) {
-      console.error("[RouteGuideDialog] handleSaveImage error:", err)
+      console.error("[RouteGuideDialog] handleGenerateImage error:", err)
     } finally {
       setIsSavingImage(false)
     }
@@ -250,6 +251,7 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
     setStartPoint(null)
     setResult(null)
     setErrorMessage(null)
+    setPreviewImageUrl(null)
   }
 
   function handleClose() {
@@ -258,8 +260,17 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
       <DialogContent
+        // 画像プレビューはdocument.body直下にポータルしており、RadixのDialogContentからは
+        // 「外側」の要素とみなされるため、そのままだとプレビュー内をクリックしただけで
+        // Dialog自体が閉じてしまう。プレビュー領域内のクリックだけは無視する。
+        onInteractOutside={(event) => {
+          if (previewOverlayRef.current?.contains(event.target as Node)) {
+            event.preventDefault()
+          }
+        }}
         className={cn(
           // スマホ幅: 上寄せ配置＋画面高さに収まらない分だけダイアログ自体をスクロール可能にする。
           // 現状は中央寄せ＋高さ無制限のため、画面の狭いスマホで中身（特にヘッダー直後の地図）が
@@ -401,13 +412,13 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
 
         <DialogFooter className="print:hidden">
           {step === "result" && (isMobile ? (
-            <Button variant="outline" onClick={handleSaveImage} disabled={isSavingImage}>
+            <Button variant="outline" onClick={handleGenerateImage} disabled={isSavingImage}>
               {isSavingImage ? (
                 <LoaderCircle className="h-4 w-4 animate-spin" />
               ) : (
-                <ImageDown className="h-4 w-4" />
+                <ImageIcon className="h-4 w-4" />
               )}
-              画像として保存
+              画像を表示
             </Button>
           ) : (
             <Button variant="outline" onClick={handlePrint}>
@@ -421,5 +432,31 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {previewImageUrl && typeof document !== "undefined" && createPortal(
+      // DialogContentにtransformがかかっているため、position:fixedの子をそのまま置くと
+      // Dialog内に閉じ込められる。document.body直下にポータルして画面全体に表示する。
+      <div
+        ref={previewOverlayRef}
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-black/90 p-4"
+      >
+        <button
+          type="button"
+          onClick={() => setPreviewImageUrl(null)}
+          className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+          aria-label="閉じる"
+        >
+          <X className="h-6 w-6" />
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element -- data URLかつiOSの長押し保存を確実に効かせるため素の<img>を使う */}
+        <img
+          src={previewImageUrl}
+          alt={goalName ? `${goalName}までの道案内` : "道案内"}
+          className="max-h-[80vh] max-w-full rounded object-contain shadow-lg"
+        />
+        <p className="text-sm text-white/90">画像を長押しして保存できます</p>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }
