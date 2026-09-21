@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { toPng } from "html-to-image"
+import { toBlob } from "html-to-image"
 import {
   Dialog,
   DialogContent,
@@ -115,6 +115,8 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
   // スマホ幅: 地図＋番号付き案内文（.route-guide-print-area）を1枚のPNGとして書き出し、画面に大きく表示する。
   // iOSでは<a download>によるダウンロードが機能しないため、生成した画像をそのまま<img>で
   // 表示し、ユーザーが長押しして「"写真"に追加」で保存する形にする。
+  // data URL(toPng)だとiOS Safariが長押しメニューを出さずテキスト選択のような挙動になることがあるため、
+  // blob URL(toBlob + URL.createObjectURL)を使う。
   // isSavingImage中は印刷用の拡大レイアウト(印刷時と同じテキスト/バッジサイズ)を一時的に適用してから撮影する。
   async function handleGenerateImage() {
     const node = printAreaRef.current
@@ -127,17 +129,26 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
       await new Promise((resolve) => setTimeout(resolve, 50))
       await document.fonts.ready
 
-      const dataUrl = await toPng(node, {
+      const blob = await toBlob(node, {
         backgroundColor: "#ffffff",
         pixelRatio: 2,
       })
+      if (!blob) throw new Error("toBlob returned null")
 
-      setPreviewImageUrl(dataUrl)
+      setPreviewImageUrl(URL.createObjectURL(blob))
     } catch (err) {
       console.error("[RouteGuideDialog] handleGenerateImage error:", err)
     } finally {
       setIsSavingImage(false)
     }
+  }
+
+  // previewImageUrlはblob URLなので、表示を終えたら必ず解放してメモリリークを防ぐ
+  function closePreview() {
+    setPreviewImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
   }
 
   const fetchSuggestions = useDebouncedCallback(async (query: string) => {
@@ -251,7 +262,7 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
     setStartPoint(null)
     setResult(null)
     setErrorMessage(null)
-    setPreviewImageUrl(null)
+    closePreview()
   }
 
   function handleClose() {
@@ -435,13 +446,16 @@ export default function RouteGuideDialog({ open, onClose, goal, goalName }: Rout
     {previewImageUrl && typeof document !== "undefined" && createPortal(
       // DialogContentにtransformがかかっているため、position:fixedの子をそのまま置くと
       // Dialog内に閉じ込められる。document.body直下にポータルして画面全体に表示する。
+      // RadixのモーダルDialogが開いている間はdocument.bodyにpointer-events:noneが
+      // 設定されるため、bodyの子であるこのオーバーレイもpointer-events-autoで明示的に
+      // 上書きしないと、タップがすべて背後に素通りしてDialogごと閉じてしまう。
       <div
         ref={previewOverlayRef}
-        className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-black/90 p-4"
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-black/90 p-4 pointer-events-auto"
       >
         <button
           type="button"
-          onClick={() => setPreviewImageUrl(null)}
+          onClick={closePreview}
           className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
           aria-label="閉じる"
         >
