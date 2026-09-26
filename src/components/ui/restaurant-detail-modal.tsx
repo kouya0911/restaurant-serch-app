@@ -10,10 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Check, Copy, ExternalLink, LoaderCircle, MapPin, Route } from "lucide-react"
+import { CalendarPlus, Check, Copy, ExternalLink, LoaderCircle, MapPin, Route } from "lucide-react"
 import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantActions"
 import { PlaceDetailsAll } from "@/types"
 import RouteGuideDialog from "@/components/route-guide/route-guide-dialog"
+import VisitPlanDialog from "@/components/ui/visit-plan-dialog"
 
 interface RestaurantDetailModalProps {
   placeId: string
@@ -51,6 +52,7 @@ export default function RestaurantDetailModal({
   const [details, setDetails] = useState<PlaceDetailsAll | null>(null)
   const [copied, setCopied] = useState(false)
   const [showRouteGuide, setShowRouteGuide] = useState(false)
+  const [showVisitPlan, setShowVisitPlan] = useState(false)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(restaurantName ?? "")
@@ -96,7 +98,7 @@ export default function RestaurantDetailModal({
 
   return (
     <>
-    <Dialog open={isOpen && !showRouteGuide} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={isOpen && !showRouteGuide && !showVisitPlan} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{restaurantName ?? "レストラン詳細"}</DialogTitle>
@@ -152,6 +154,11 @@ export default function RestaurantDetailModal({
             )}
 
             <div className="flex flex-col gap-2 pt-1">
+              <Button variant="outline" className="w-full" onClick={() => setShowVisitPlan(true)}>
+                <CalendarPlus className="h-4 w-4" />
+                行く日をカレンダーに追加
+              </Button>
+
               <Button variant="outline" className="w-full" asChild>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurantName ?? "")}&query_place_id=${encodeURIComponent(placeId)}`}
@@ -207,6 +214,12 @@ export default function RestaurantDetailModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <VisitPlanDialog
+      open={isOpen && showVisitPlan}
+      onClose={() => setShowVisitPlan(false)}
+      placeId={placeId}
+      restaurantName={restaurantName}
+    />
     {location?.latitude != null && location?.longitude != null && (
       <RouteGuideDialog
         open={showRouteGuide}

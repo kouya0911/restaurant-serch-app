@@ -181,6 +181,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Menu, Ticket, TicketCheck, Trash2 } from "lucide-react"
+import useSWR from "swr"
+import { deleteVisitPlanAction } from "@/app/(private)/actions/visitPlanActions"
+import { formatVisitDateLabel, todayInJst } from "@/lib/calendar/visit-date"
+import { VISIT_PLANS_KEY, fetchVisitPlans, refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -199,6 +203,32 @@ export default function Menusheet() {
   const [isFavDetailOpen, setIsFavDetailOpen] = useState(false)
   const { candidates, addCandidate, isCandidate } = useLottery()
   const [isLotteryOpen, setIsLotteryOpen] = useState(false)
+  const [deletingPlanId, setDeletingPlanId] = useState<number | null>(null)
+  const [planDeleteError, setPlanDeleteError] = useState<string | null>(null)
+
+  // 「これから行く」: 詳細モーダルでの登録/削除は refreshVisitPlans() (= mutate) で再取得される
+  const { data: visitPlans, error: visitPlansError } = useSWR(VISIT_PLANS_KEY, fetchVisitPlans)
+  const today = todayInJst()
+  const upcomingPlans = (visitPlans ?? []).filter((p) => p.visit_date >= today).slice(0, 5)
+
+  const handleDeletePlan = async (id: number) => {
+    if (deletingPlanId !== null) return
+    setDeletingPlanId(id)
+    setPlanDeleteError(null)
+    try {
+      const res = await deleteVisitPlanAction(id)
+      if (!res.success) {
+        setPlanDeleteError(res.message)
+        return
+      }
+      await refreshVisitPlans()
+    } catch (err) {
+      console.error("visit plan delete error:", err)
+      setPlanDeleteError("削除に失敗しました")
+    } finally {
+      setDeletingPlanId(null)
+    }
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -344,6 +374,53 @@ export default function Menusheet() {
             <Button variant="link" className="mt-2 text-xs text-green-600">
               もっと見る
             </Button>
+          )}
+
+          {/* これから行く(visit_plans) */}
+          <span className="font-bold text-sm mt-5 mb-2 block">これから行く</span>
+
+          {visitPlansError ? (
+            <p className="text-gray-500 text-sm">予定を取得できませんでした</p>
+          ) : !visitPlans ? (
+            <p className="text-gray-400 text-sm">読み込み中...</p>
+          ) : upcomingPlans.length === 0 ? (
+            <p className="text-gray-500 text-sm">まだ予定がありません</p>
+          ) : (
+            <ul className="space-y-2">
+              {upcomingPlans.map((plan) => (
+                <li
+                  key={plan.id}
+                  className="text-sm text-gray-800 border-b pb-1 border-gray-200 flex items-center justify-between gap-2 cursor-pointer"
+                  onClick={() => {
+                    setSelectedFavorite({ place_id: plan.place_id, restaurant_name: plan.restaurant_name })
+                    setIsFavDetailOpen(true)
+                  }}
+                >
+                  <span className="truncate">
+                    {formatVisitDateLabel(plan.visit_date)}
+                    {plan.restaurant_name}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeletePlan(plan.id)
+                    }}
+                    disabled={deletingPlanId === plan.id}
+                    title="予定を削除"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {planDeleteError && (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {planDeleteError}
+            </p>
           )}
         </div>
 

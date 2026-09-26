@@ -1,6 +1,7 @@
 "use server"
 
 import { isValidVisitDate } from "@/lib/calendar/google-calendar-url"
+import { todayInJst } from "@/lib/calendar/visit-date"
 import { VisitPlan } from "@/types"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
@@ -15,11 +16,6 @@ const UNIQUE_VIOLATION = "23505"
 type ActionResult<T = undefined> =
   | ({ success: true } & (T extends undefined ? {} : { data: T }))
   | { success: false; message: string }
-
-/** 日本時間の「今日」を "YYYY-MM-DD" で返す（サーバーはUTCなので +9h して切り出す） */
-function todayInJst(): string {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
 
 async function getAuthedUser() {
   const supabase = await createClient()
