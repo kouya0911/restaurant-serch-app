@@ -40,7 +40,8 @@ export const config = {
   matcher: [
     /*
      * /auth や /login を Middleware のチェック対象から外します
+     * /store/<token>(店長ページ)と /api/store/ はログイン不要の秘密URLなので同様に外します
      */
-    '/((?!_next/static|_next/image|favicon.ico|auth|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth|login|store/|api/store/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
