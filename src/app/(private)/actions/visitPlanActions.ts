@@ -127,3 +127,58 @@ export async function deleteVisitPlanAction(id: number): Promise<ActionResult> {
     return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
   }
 }
+
+// verify_visit() (DB関数, docs/sql/003_verify_visit.sql) の戻り値 → 利用者向けメッセージ
+const VERIFY_ERROR_MESSAGES: Record<string, string> = {
+  wrong_code: "認証コードが違います",
+  not_today: "来店の認証ができるのは、予定の日当日だけです",
+  already: "この予定はすでに来店を認証済みです",
+  no_store: "この店はまだ来店認証に対応していません",
+  not_found: "予定が見つかりませんでした",
+}
+const MAX_CODE_LENGTH = 32
+
+/**
+ * 「行ったよ」の来店認証。コードの照合はDB関数の中だけで行い、正しいコードはブラウザにも
+ * このサーバーにも渡らない(入力されたコードをDBへ送るだけ)。visited_at の書き込みも関数のみが行う。
+ */
+export async function verifyVisitAction(planId: number, code: string): Promise<ActionResult> {
+  try {
+    if (!Number.isInteger(planId)) return { success: false, message: "IDが正しくありません" }
+
+    // 全角数字や前後の空白を吸収する(スマホで全角入力になっていても通す)
+    const normalized = (code ?? "").normalize("NFKC").trim()
+    if (!normalized) return { success: false, message: "認証コードを入力してください" }
+    if (normalized.length > MAX_CODE_LENGTH) return { success: false, message: "認証コードが長すぎます" }
+
+    const { supabase, user } = await getAuthedUser()
+    if (!user) return { success: false, message: "AUTH_REQUIRED" }
+
+    // verify_visit は database.types.ts に未反映のため、テーブルと同様に型を回避して呼ぶ
+    const { data, error } = await (supabase as any).rpc("verify_visit", {
+      p_plan_id: planId,
+      p_code: normalized,
+    })
+
+    if (error) {
+      console.error("[verifyVisitAction] rpc error:", error.message)
+      return { success: false, message: `来店の認証に失敗しました: ${error.message}` }
+    }
+
+    if (data === "ok") {
+      revalidatePath("/calendar")
+      return { success: true }
+    }
+    if (data === "not_authenticated") return { success: false, message: "AUTH_REQUIRED" }
+
+    const message = typeof data === "string" ? VERIFY_ERROR_MESSAGES[data] : undefined
+    if (!message) {
+      console.error("[verifyVisitAction] unexpected result:", data)
+      return { success: false, message: "来店の認証に失敗しました" }
+    }
+    return { success: false, message }
+  } catch (err: any) {
+    console.error("[verifyVisitAction] UNEXPECTED CRASH:", err)
+    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+  }
+}
