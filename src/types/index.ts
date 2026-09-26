@@ -86,3 +86,12 @@ export interface Address {
     latitude: number,
     longitude: number;
 }
+export interface VisitPlan {
+    id: number;
+    user_id: string;
+    place_id: string;
+    restaurant_name: string;
+    visit_date: string; // "YYYY-MM-DD" (date型。Dateに変換せず文字列のまま扱う)
+    visited_at: string | null; // 来店認証(次フェーズ)で設定。登録時は null
+    created_at: string;
+}
