@@ -117,6 +117,16 @@ export async function deleteVisitPlanAction(id: number): Promise<ActionResult> {
       return { success: false, message: `予定の削除に失敗しました: ${error.message}` }
     }
     if (!data || data.length === 0) {
+      // 0行の理由は「存在しない」か「来店認証済み(RLSで削除不可)」。後者なら専用メッセージにする
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select("visited_at")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (existing && (existing as any).visited_at) {
+        return { success: false, message: "来店済みの予定は削除できません" }
+      }
       return { success: false, message: "予定が見つかりませんでした" }
     }
 

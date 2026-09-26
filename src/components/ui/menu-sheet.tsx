@@ -180,11 +180,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Menu, Ticket, TicketCheck, Trash2 } from "lucide-react"
+import { Check, Menu, Ticket, TicketCheck, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { deleteVisitPlanAction } from "@/app/(private)/actions/visitPlanActions"
 import { formatVisitDateLabel, todayInJst } from "@/lib/calendar/visit-date"
 import { VISIT_PLANS_KEY, fetchVisitPlans, refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
+import VisitVerifyDialog from "@/components/ui/visit-verify-dialog"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -205,6 +206,8 @@ export default function Menusheet() {
   const [isLotteryOpen, setIsLotteryOpen] = useState(false)
   const [deletingPlanId, setDeletingPlanId] = useState<number | null>(null)
   const [planDeleteError, setPlanDeleteError] = useState<string | null>(null)
+  // 「行ったよ」の認証コード入力ダイアログの対象(null なら閉じている)
+  const [verifyTarget, setVerifyTarget] = useState<{ id: number; name: string } | null>(null)
 
   // 「これから行く」: 詳細モーダルでの登録/削除は refreshVisitPlans() (= mutate) で再取得される
   const { data: visitPlans, error: visitPlansError } = useSWR(VISIT_PLANS_KEY, fetchVisitPlans)
@@ -387,34 +390,62 @@ export default function Menusheet() {
             <p className="text-gray-500 text-sm">まだ予定がありません</p>
           ) : (
             <ul className="space-y-2">
-              {upcomingPlans.map((plan) => (
-                <li
-                  key={plan.id}
-                  className="text-sm text-gray-800 border-b pb-1 border-gray-200 flex items-center justify-between gap-2 cursor-pointer"
-                  onClick={() => {
-                    setSelectedFavorite({ place_id: plan.place_id, restaurant_name: plan.restaurant_name })
-                    setIsFavDetailOpen(true)
-                  }}
-                >
-                  <span className="truncate">
-                    {formatVisitDateLabel(plan.visit_date)}
-                    {plan.restaurant_name}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeletePlan(plan.id)
+              {upcomingPlans.map((plan) => {
+                const isVisited = plan.visited_at != null
+                const canVerify = !isVisited && plan.visit_date === today
+                return (
+                  <li
+                    key={plan.id}
+                    className="text-sm text-gray-800 border-b pb-1 border-gray-200 cursor-pointer"
+                    onClick={() => {
+                      setSelectedFavorite({ place_id: plan.place_id, restaurant_name: plan.restaurant_name })
+                      setIsFavDetailOpen(true)
                     }}
-                    disabled={deletingPlanId === plan.id}
-                    title="予定を削除"
                   >
-                    <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">
+                        {formatVisitDateLabel(plan.visit_date)}
+                        {plan.restaurant_name}
+                      </span>
+                      {/* 来店済みの予定は削除できない(DB側でも拒否される) */}
+                      {!isVisited && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeletePlan(plan.id)
+                          }}
+                          disabled={deletingPlanId === plan.id}
+                          title="予定を削除"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                        </Button>
+                      )}
+                    </div>
+                    {isVisited && (
+                      <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-green-700">
+                        <Check className="h-3.5 w-3.5" />
+                        来店済み
+                      </p>
+                    )}
+                    {canVerify && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 h-7 w-full text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVerifyTarget({ id: plan.id, name: plan.restaurant_name })
+                        }}
+                      >
+                        行ったよ
+                      </Button>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
           {planDeleteError && (
@@ -437,6 +468,13 @@ export default function Menusheet() {
         <LotteryModal
           isOpen={isLotteryOpen}
           onClose={() => setIsLotteryOpen(false)}
+        />
+
+        <VisitVerifyDialog
+          open={verifyTarget !== null}
+          onClose={() => setVerifyTarget(null)}
+          planId={verifyTarget?.id ?? null}
+          restaurantName={verifyTarget?.name}
         />
 
         <RestaurantDetailModal
