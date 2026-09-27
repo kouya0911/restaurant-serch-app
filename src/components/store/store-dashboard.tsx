@@ -1,13 +1,16 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import useSWR from "swr"
 import { formatVisitDateLabel } from "@/lib/calendar/visit-date"
 import type { StoreStats, StoreStatsDay } from "@/lib/store/stats"
 import type { StoreReviews } from "@/lib/store/reviews"
 import StoreReviewsCard from "@/components/store/store-reviews-card"
+import StoreForecastConcept from "@/components/store/store-forecast-concept"
+import { Panel, UpdatedMark, useChangedRecently } from "@/components/store/dashboard-parts"
 
 const REFRESH_MS = 5000
+const WEEK_DAYS = 7
 
 class InvalidTokenError extends Error {}
 
@@ -18,127 +21,76 @@ async function fetchStats(url: string): Promise<StoreStats> {
   return res.json()
 }
 
-// 人数が少なく伏せられた値は「少数」と表示する(閾値の値そのものは画面に出さない)
-function CountText({ value, masked }: { value: number | null; masked: boolean }) {
-  if (masked || value == null) {
-    return (
-      <span title="個人が特定されないよう、人数が少ない日は数を表示していません">少数</span>
-    )
-  }
-  return <>{value}</>
-}
+const MASKED_TITLE = "個人が特定されないよう、人数が少ない日は数を表示していません"
 
-// 値が変わった瞬間だけ true を返す(数字が増えたことを目で追えるようにする)
-function useFlash(value: number | null): boolean {
-  const prev = useRef(value)
-  const [flash, setFlash] = useState(false)
-  useEffect(() => {
-    if (prev.current === value) return
-    prev.current = value
-    setFlash(true)
-    const t = setTimeout(() => setFlash(false), 1600)
-    return () => clearTimeout(t)
-  }, [value])
-  return flash
-}
-
-function HeroNumber({
+// 今日の数字1つ分。value が null のときは placeholder(人数が伏せられた日は「少数」、率が出ない日は「—」)
+function Stat({
   label,
   value,
-  masked,
-  tone,
+  unit,
+  placeholder,
+  tone = "",
 }: {
   label: string
   value: number | null
-  masked: boolean
-  tone: "blue" | "green"
+  unit: string
+  placeholder: "少数" | "—"
+  tone?: string
 }) {
-  const flash = useFlash(masked ? null : value)
-  const colors =
-    tone === "green"
-      ? "border-green-300 bg-green-50 text-green-700"
-      : "border-blue-200 bg-blue-50 text-blue-700"
+  const changed = useChangedRecently(value ?? placeholder)
   return (
-    <div
-      className={`rounded-2xl border-2 p-5 text-center transition-all duration-500 md:p-8 ${colors} ${
-        flash ? "scale-[1.03] ring-8 ring-yellow-300" : ""
-      }`}
-    >
-      <p className="text-base font-semibold md:text-2xl">{label}</p>
-      <p className="mt-2 flex items-baseline justify-center gap-2 font-bold leading-none">
-        <span className={masked || value == null ? "text-6xl md:text-8xl" : "text-7xl md:text-[9rem]"}>
-          <CountText value={value} masked={masked} />
-        </span>
-        {!(masked || value == null) && <span className="text-2xl md:text-4xl">人</span>}
+    <div className="min-w-0 px-4 first:pl-0 last:pr-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 flex items-baseline whitespace-nowrap">
+        {value == null ? (
+          <span
+            className="text-2xl font-semibold text-muted-foreground"
+            title={placeholder === "少数" ? MASKED_TITLE : undefined}
+          >
+            {placeholder}
+          </span>
+        ) : (
+          <>
+            <span className={`text-3xl font-semibold tabular-nums ${tone}`}>{value}</span>
+            <span className="ml-0.5 text-sm text-muted-foreground">{unit}</span>
+          </>
+        )}
+        <UpdatedMark show={changed} />
       </p>
     </div>
   )
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm md:p-6">
-      <h2 className="mb-4 text-lg font-bold md:text-xl">{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function UpcomingRow({ day, max, isToday }: { day: StoreStatsDay; max: number; isToday: boolean }) {
+// 今後7日の1行: 日付・細い棒・人数
+function WeekRow({ day, max, isToday }: { day: StoreStatsDay; max: number; isToday: boolean }) {
   const masked = day.planned_masked || day.planned == null
-  const pct = masked ? 6 : Math.max(day.planned! > 0 ? 3 : 0, Math.round((day.planned! / max) * 100))
+  const pct = masked ? 0 : Math.round((day.planned! / max) * 100)
   return (
     <li
-      className={`grid grid-cols-[5.5rem_1fr_3.5rem] items-center gap-3 rounded-lg px-2 py-1.5 md:grid-cols-[6.5rem_1fr_4rem] ${
-        isToday ? "bg-amber-50 font-bold" : ""
-      }`}
+      className={`grid grid-cols-[6.5rem_1fr_3rem] items-center gap-3 text-sm ${isToday ? "font-semibold" : ""}`}
     >
-      <span className="whitespace-nowrap text-sm md:text-base">
+      <span className="whitespace-nowrap">
         {formatVisitDateLabel(day.date)}
-        {isToday && <span className="ml-1 text-xs text-amber-700">今日</span>}
+        {isToday && <span className="ml-1 text-xs font-normal text-muted-foreground">今日</span>}
       </span>
-      <div className="h-4 overflow-hidden rounded bg-gray-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded transition-all duration-500 ${masked ? "bg-gray-300" : "bg-blue-500"}`}
+          className="h-full rounded-full bg-foreground/70 transition-[width] duration-500"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-right text-sm md:text-base">
-        <CountText value={day.planned} masked={masked} />
-        {!masked && <span className="text-xs font-normal text-gray-500">人</span>}
-      </span>
-    </li>
-  )
-}
-
-function PastRow({ day, max }: { day: StoreStatsDay; max: number }) {
-  const plannedMasked = day.planned_masked || day.planned == null
-  const visitedMasked = day.visited_masked || day.visited == null
-  const plannedPct = plannedMasked ? 0 : Math.round((day.planned! / max) * 100)
-  const visitedPct = plannedMasked || visitedMasked ? 0 : Math.round((day.visited! / max) * 100)
-  return (
-    <li className="rounded-lg px-2 py-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="text-sm font-semibold md:text-base">{formatVisitDateLabel(day.date)}</span>
-        <span className="text-sm md:text-base">
-          予定 <CountText value={day.planned} masked={plannedMasked} />
-          {!plannedMasked && "人"}
-          <span className="mx-1.5 text-gray-400">→</span>
-          来店 <span className="font-bold text-green-700">
-            <CountText value={day.visited} masked={plannedMasked || visitedMasked} />
+      <span className="text-right tabular-nums">
+        {masked ? (
+          <span className="text-xs font-normal text-muted-foreground" title={MASKED_TITLE}>
+            少数
           </span>
-          {!(plannedMasked || visitedMasked) && "人"}
-          {day.rate != null && (
-            <span className="ml-2 font-bold text-green-700">（来店率 {day.rate}%）</span>
-          )}
-        </span>
-      </div>
-      {!plannedMasked && (
-        <div className="relative mt-1.5 h-3 overflow-hidden rounded bg-gray-100">
-          <div className="absolute inset-y-0 left-0 rounded bg-blue-300" style={{ width: `${plannedPct}%` }} />
-          <div className="absolute inset-y-0 left-0 rounded bg-green-500" style={{ width: `${visitedPct}%` }} />
-        </div>
-      )}
+        ) : (
+          <>
+            {day.planned}
+            <span className="ml-0.5 text-xs font-normal text-muted-foreground">人</span>
+          </>
+        )}
+      </span>
     </li>
   )
 }
@@ -166,109 +118,93 @@ export default function StoreDashboard({
 
   if (error instanceof InvalidTokenError) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-lg text-gray-600">このページは無効になりました。</p>
+      <main className="flex min-h-dvh items-center justify-center p-6">
+        <p className="text-sm text-muted-foreground">このページは無効になりました。</p>
       </main>
     )
   }
 
   const stats = data ?? initial
   const today = stats.upcoming.find((d) => d.date === stats.today) ?? stats.upcoming[0]
-  const upcomingMax = Math.max(1, ...stats.upcoming.map((d) => d.planned ?? 0))
-  const pastMax = Math.max(1, ...stats.past.map((d) => d.planned ?? 0))
+  const week = stats.upcoming.slice(0, WEEK_DAYS)
+  const weekMax = Math.max(1, ...week.map((d) => d.planned ?? 0))
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 md:space-y-8 md:py-10">
-        <header className="flex flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm text-gray-500">店長ページ</p>
-            <h1 className="break-words text-3xl font-bold md:text-5xl">{stats.store.name}</h1>
+    <div className="min-h-dvh bg-background text-foreground">
+      {/* ヘッダー(アプリ側のヘッダーと同じく細い下線・太字の名前) */}
+      <header className="border-b">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <span className="shrink-0 text-xs text-muted-foreground">店長ページ</span>
+            <h1 className="truncate text-lg font-bold">{stats.store.name}</h1>
           </div>
-          <p className="text-xs text-gray-500 md:text-sm" aria-live="polite">
-            <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500 align-middle" />
-            自動更新中（{REFRESH_MS / 1000}秒ごと）
-            {updatedAt && <> ・ 最終更新 {updatedAt.toLocaleTimeString("ja-JP")}</>}
+          <p className="shrink-0 text-xs text-muted-foreground" aria-live="polite">
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-green-500 align-middle" />
+            <span className="hidden sm:inline">自動更新中（{REFRESH_MS / 1000}秒ごと）・</span>
+            {updatedAt ? `最終更新 ${updatedAt.toLocaleTimeString("ja-JP")}` : "読み込み中"}
           </p>
-        </header>
+        </div>
+      </header>
 
-        {error && (
-          <p role="alert" className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-800">
-            通信できませんでした。最後に取得できた内容を表示しています（自動で再試行します）。
-          </p>
-        )}
-
-        {/* 今日(デモの主役) */}
-        <section aria-label="今日の状況">
-          <h2 className="mb-3 text-lg font-bold md:text-2xl">
-            今日（{formatVisitDateLabel(stats.today)}）
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-            <HeroNumber
-              label="行く予定の人"
-              value={today?.planned ?? null}
-              masked={today?.planned_masked ?? false}
-              tone="blue"
-            />
-            <HeroNumber
-              label="来店した人"
-              value={today?.visited ?? null}
-              masked={today?.visited_masked ?? false}
-              tone="green"
-            />
-          </div>
-          {today?.rate != null && (
-            <p className="mt-3 text-center text-xl font-bold text-green-700 md:text-3xl">
-              来店率 {today.rate}%
+      <main className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[6fr_4fr] lg:gap-6">
+        {/* 左: 本物のデータ */}
+        <div className="min-w-0 space-y-4">
+          {error && (
+            <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              通信できませんでした。最後に取得できた内容を表示しています（自動で再試行します）。
             </p>
           )}
-        </section>
 
-        {/* 認証コード */}
-        <section className="rounded-2xl border-2 border-dashed border-gray-400 bg-white p-5 text-center md:p-6">
-          <p className="text-sm font-semibold text-gray-600 md:text-xl">
-            来店認証コード（お客様にお伝えください）
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <Panel title={`今日 ${formatVisitDateLabel(stats.today)}`}>
+              <div className="grid grid-cols-3 divide-x">
+                <Stat
+                  label="予定"
+                  value={today?.planned_masked ? null : today?.planned ?? null}
+                  unit="人"
+                  placeholder="少数"
+                />
+                <Stat
+                  label="来店"
+                  value={today?.visited_masked ? null : today?.visited ?? null}
+                  unit="人"
+                  placeholder="少数"
+                  tone="text-green-700"
+                />
+                <Stat label="来店率" value={today?.rate ?? null} unit="%" placeholder="—" tone="text-green-700" />
+              </div>
+            </Panel>
+
+            <section className="rounded-lg border bg-card p-4 sm:min-w-[15rem]">
+              <h2 className="text-sm font-semibold">来店認証コード</h2>
+              <p className="text-xs text-muted-foreground">お客様にお伝えください</p>
+              <p className="mt-2 break-all font-mono text-5xl font-semibold leading-none tracking-[0.2em]">
+                {stats.store.verify_code}
+              </p>
+            </section>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Panel title="今後7日の予定">
+              <ul className="space-y-2.5">
+                {week.map((d) => (
+                  <WeekRow key={d.date} day={d} max={weekMax} isToday={d.date === stats.today} />
+                ))}
+              </ul>
+            </Panel>
+
+            <StoreReviewsCard token={token} initial={initialReviews} />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            ※ 個人が特定されないよう、人数が少ない日は「少数」と表示します（0人の日は 0 と表示）。
+            お客様の氏名や利用者情報は表示されません。
           </p>
-          <p className="mt-2 break-all font-mono text-6xl font-bold tracking-[0.25em] md:text-7xl md:leading-none">
-            {stats.store.verify_code}
-          </p>
-        </section>
-
-        <StoreReviewsCard token={token} initial={initialReviews} />
-
-        <div className="grid gap-5 lg:grid-cols-2 lg:gap-8">
-          <Card title="今後14日間の「行く予定」">
-            <ul className="space-y-0.5">
-              {stats.upcoming.map((d) => (
-                <UpcomingRow key={d.date} day={d} max={upcomingMax} isToday={d.date === stats.today} />
-              ))}
-            </ul>
-          </Card>
-
-          <Card title="過去14日間：予定 → 来店">
-            {stats.past.length === 0 ? (
-              <p className="text-gray-500">まだ記録がありません。</p>
-            ) : (
-              <>
-                <ul className="space-y-1">
-                  {stats.past.map((d) => (
-                    <PastRow key={d.date} day={d} max={pastMax} />
-                  ))}
-                </ul>
-                <p className="mt-3 flex items-center gap-3 text-xs text-gray-500">
-                  <span className="inline-block h-2.5 w-5 rounded bg-blue-300" /> 予定
-                  <span className="inline-block h-2.5 w-5 rounded bg-green-500" /> 来店
-                </p>
-              </>
-            )}
-          </Card>
         </div>
 
-        <p className="text-xs text-gray-500">
-          ※ 個人が特定されないよう、人数が少ない日は数を「少数」と表示します（0人の日はそのまま 0 と表示）。
-          お客様の氏名や利用者情報は表示されません。
-        </p>
-      </div>
-    </main>
+        {/* 右: 構想イメージ(固定のサンプルデータ。実データとはつながっていない) */}
+        <StoreForecastConcept />
+      </main>
+    </div>
   )
 }
