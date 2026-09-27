@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button"
 import { verifyVisitAction } from "@/app/(private)/actions/visitPlanActions"
 import { refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
 import VisitReviewForm from "@/components/ui/visit-review-form"
+import PointsBadge from "@/components/ui/points-badge"
+import { REVIEW_POINTS, VISIT_POINTS } from "@/lib/points/visit-points"
 
 interface VisitVerifyDialogProps {
   open: boolean
@@ -87,11 +89,13 @@ export default function VisitVerifyDialog({
             <p className="flex items-center gap-2 font-semibold text-green-700">
               <CircleCheck className="h-5 w-5" />
               来店を記録しました
+              <PointsBadge points={VISIT_POINTS} />
             </p>
             {reviewed ? (
-              <p className="flex items-center gap-2 font-semibold text-amber-600">
+              <p className="flex flex-wrap items-center gap-2 font-semibold text-amber-600">
                 <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
                 レビューを送りました。ありがとうございます！
+                <PointsBadge points={REVIEW_POINTS} />
               </p>
             ) : (
               planId != null && (
