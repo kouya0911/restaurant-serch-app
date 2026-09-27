@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CircleCheck, LoaderCircle, MapPinCheck } from "lucide-react"
+import { CircleCheck, LoaderCircle, MapPinCheck, Star } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { verifyVisitAction } from "@/app/(private)/actions/visitPlanActions"
 import { refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
+import VisitReviewForm from "@/components/ui/visit-review-form"
 
 interface VisitVerifyDialogProps {
   open: boolean
@@ -22,6 +23,7 @@ interface VisitVerifyDialogProps {
 }
 
 // 「行ったよ」の認証コード入力。コードの照合はサーバー(DB関数)で行い、正解はここには届かない。
+// 認証できたら、そのまま続けてレビュー(星・ひとこと)を書ける。「あとで」ならサイドバーから書く。
 export default function VisitVerifyDialog({
   open,
   onClose,
@@ -32,6 +34,7 @@ export default function VisitVerifyDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [reviewed, setReviewed] = useState(false)
 
   // 開くたびに入力状態をリセットする
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function VisitVerifyDialog({
     setCode("")
     setError(null)
     setDone(false)
+    setReviewed(false)
     setIsSubmitting(false)
   }, [open])
 
@@ -71,17 +75,36 @@ export default function VisitVerifyDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent>
+      {/* スマホでキーボードが出てもレビュー欄までスクロールできるように高さを抑える */}
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>行ったよ！</DialogTitle>
           <DialogDescription className="truncate">{restaurantName}</DialogDescription>
         </DialogHeader>
 
         {done ? (
-          <p className="flex items-center gap-2 font-semibold text-green-700">
-            <CircleCheck className="h-5 w-5" />
-            来店を記録しました
-          </p>
+          <>
+            <p className="flex items-center gap-2 font-semibold text-green-700">
+              <CircleCheck className="h-5 w-5" />
+              来店を記録しました
+            </p>
+            {reviewed ? (
+              <p className="flex items-center gap-2 font-semibold text-amber-600">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                レビューを送りました。ありがとうございます！
+              </p>
+            ) : (
+              planId != null && (
+                <div className="border-t pt-4">
+                  <VisitReviewForm
+                    planId={planId}
+                    onSubmitted={() => setReviewed(true)}
+                    onSkip={onClose}
+                  />
+                </div>
+              )
+            )}
+          </>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3">
             <label className="block text-sm font-bold" htmlFor="visit-verify-code">
@@ -114,11 +137,14 @@ export default function VisitVerifyDialog({
           </form>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {done ? "閉じる" : "キャンセル"}
-          </Button>
-        </DialogFooter>
+        {/* レビュー入力中は、フォームの「あとで」が閉じるボタンを兼ねる */}
+        {!(done && !reviewed) && (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              {done ? "閉じる" : "キャンセル"}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )
