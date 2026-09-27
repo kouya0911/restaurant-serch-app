@@ -180,12 +180,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Check, Menu, Ticket, TicketCheck, Trash2 } from "lucide-react"
+import { Check, Menu, Star, Ticket, TicketCheck, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { deleteVisitPlanAction } from "@/app/(private)/actions/visitPlanActions"
 import { formatVisitDateLabel, todayInJst } from "@/lib/calendar/visit-date"
 import { VISIT_PLANS_KEY, fetchVisitPlans, refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
 import VisitVerifyDialog from "@/components/ui/visit-verify-dialog"
+import VisitReviewDialog from "@/components/ui/visit-review-dialog"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -194,6 +195,9 @@ import { logout } from "@/app/(auth)/login/actions"
 import LotteryModal from "@/components/ui/lottery-modal"
 import { useLottery } from "@/components/ui/lottery-provider"
 import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
+
+const UPCOMING_LIMIT = 5
+const REVIEW_PENDING_LIMIT = 3
 
 export default function Menusheet() {
   const supabase = createClient()
@@ -208,11 +212,25 @@ export default function Menusheet() {
   const [planDeleteError, setPlanDeleteError] = useState<string | null>(null)
   // 「行ったよ」の認証コード入力ダイアログの対象(null なら閉じている)
   const [verifyTarget, setVerifyTarget] = useState<{ id: number; name: string } | null>(null)
+  // 「レビューを書く」ダイアログの対象(null なら閉じている)
+  const [reviewTarget, setReviewTarget] = useState<{ id: number; name: string } | null>(null)
+  // 「これから行く」を全件表示するか(既定は先頭 UPCOMING_LIMIT 件だけ)
+  const [showAllPlans, setShowAllPlans] = useState(false)
 
   // 「これから行く」: 詳細モーダルでの登録/削除は refreshVisitPlans() (= mutate) で再取得される
   const { data: visitPlans, error: visitPlansError } = useSWR(VISIT_PLANS_KEY, fetchVisitPlans)
   const today = todayInJst()
-  const upcomingPlans = (visitPlans ?? []).filter((p) => p.visit_date >= today).slice(0, 5)
+  // 取得エラー中は一覧の代わりにエラー文を出すので、件数も 0 扱いにする(「ほか◯件」を出さない)
+  const allUpcomingPlans = visitPlansError ? [] : (visitPlans ?? []).filter((p) => p.visit_date >= today)
+  const upcomingPlans = showAllPlans ? allUpcomingPlans : allUpcomingPlans.slice(0, UPCOMING_LIMIT)
+  const hiddenPlanCount = allUpcomingPlans.length - upcomingPlans.length
+  // 「レビューを書く」: 来店済みでまだレビューのない予定(過去の日付も含む)を、来店日の新しい順に数件
+  const reviewPendingPlans = visitPlansError
+    ? []
+    : (visitPlans ?? [])
+        .filter((p) => p.visited_at != null && p.review == null)
+        .sort((a, b) => b.visit_date.localeCompare(a.visit_date) || b.id - a.id)
+        .slice(0, REVIEW_PENDING_LIMIT)
 
   const handleDeletePlan = async (id: number) => {
     if (deletingPlanId !== null) return
@@ -285,7 +303,14 @@ export default function Menusheet() {
   }
 
   return (
-    <Sheet onOpenChange={(open) => { if (!open) setIsLotteryOpen(false) }}>
+    <Sheet
+      onOpenChange={(open) => {
+        if (!open) {
+          setIsLotteryOpen(false)
+          setShowAllPlans(false)
+        }
+      }}
+    >
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon">
           <Menu />
@@ -428,6 +453,12 @@ export default function Menusheet() {
                       <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-green-700">
                         <Check className="h-3.5 w-3.5" />
                         来店済み
+                        {plan.review && (
+                          <span className="ml-2 flex items-center gap-0.5 text-amber-600">
+                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                            {plan.review.rating} レビュー済み
+                          </span>
+                        )}
                       </p>
                     )}
                     {canVerify && (
@@ -448,10 +479,64 @@ export default function Menusheet() {
               })}
             </ul>
           )}
+          {hiddenPlanCount > 0 && (
+            <Button
+              variant="link"
+              className="mt-1 h-auto p-0 text-xs text-green-600"
+              onClick={() => setShowAllPlans(true)}
+            >
+              ほか{hiddenPlanCount}件
+            </Button>
+          )}
+          {showAllPlans && allUpcomingPlans.length > UPCOMING_LIMIT && (
+            <Button
+              variant="link"
+              className="mt-1 h-auto p-0 text-xs text-gray-500"
+              onClick={() => setShowAllPlans(false)}
+            >
+              たたむ
+            </Button>
+          )}
           {planDeleteError && (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {planDeleteError}
             </p>
+          )}
+
+          {/* レビューを書く(来店済み・未レビュー)。対象がないときは欄ごと出さない */}
+          {reviewPendingPlans.length > 0 && (
+            <>
+              <span className="font-bold text-sm mt-5 mb-2 block">レビューを書く</span>
+              <ul className="space-y-2">
+                {reviewPendingPlans.map((plan) => (
+                  <li
+                    key={plan.id}
+                    className="text-sm text-gray-800 border-b pb-1 border-gray-200 cursor-pointer"
+                    onClick={() => {
+                      setSelectedFavorite({ place_id: plan.place_id, restaurant_name: plan.restaurant_name })
+                      setIsFavDetailOpen(true)
+                    }}
+                  >
+                    <span className="block truncate">
+                      {formatVisitDateLabel(plan.visit_date)}
+                      {plan.restaurant_name}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1 h-7 w-full text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setReviewTarget({ id: plan.id, name: plan.restaurant_name })
+                      }}
+                    >
+                      <Star className="h-3.5 w-3.5" />
+                      レビューを書く
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
 
@@ -475,6 +560,13 @@ export default function Menusheet() {
           onClose={() => setVerifyTarget(null)}
           planId={verifyTarget?.id ?? null}
           restaurantName={verifyTarget?.name}
+        />
+
+        <VisitReviewDialog
+          open={reviewTarget !== null}
+          onClose={() => setReviewTarget(null)}
+          planId={reviewTarget?.id ?? null}
+          restaurantName={reviewTarget?.name}
         />
 
         <RestaurantDetailModal

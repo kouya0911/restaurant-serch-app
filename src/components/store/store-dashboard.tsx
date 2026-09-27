@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
 import { formatVisitDateLabel } from "@/lib/calendar/visit-date"
 import type { StoreStats, StoreStatsDay } from "@/lib/store/stats"
+import type { StoreReviews } from "@/lib/store/reviews"
+import StoreReviewsCard from "@/components/store/store-reviews-card"
 
 const REFRESH_MS = 5000
 
@@ -141,7 +143,15 @@ function PastRow({ day, max }: { day: StoreStatsDay; max: number }) {
   )
 }
 
-export default function StoreDashboard({ token, initial }: { token: string; initial: StoreStats }) {
+export default function StoreDashboard({
+  token,
+  initial,
+  initialReviews,
+}: {
+  token: string
+  initial: StoreStats
+  initialReviews: StoreReviews | null
+}) {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
   useEffect(() => setUpdatedAt(new Date()), []) // 初回表示(サーバーで取得済み)の時刻
 
@@ -223,6 +233,8 @@ export default function StoreDashboard({ token, initial }: { token: string; init
             {stats.store.verify_code}
           </p>
         </section>
+
+        <StoreReviewsCard token={token} initial={initialReviews} />
 
         <div className="grid gap-5 lg:grid-cols-2 lg:gap-8">
           <Card title="今後14日間の「行く予定」">

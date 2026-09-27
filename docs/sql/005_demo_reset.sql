@@ -1,7 +1,8 @@
 -- 005_demo_reset: リハーサル/本番前のリセット。実行場所: Supabase SQL Editor
 --
--- 【触れる範囲】 stores に登録されている店(= デモ店)の visit_plans だけ。
---   stores に無い店の予定、お気に入り、住所、プロフィール、stores 自体には一切触れない。
+-- 【触れる範囲】 stores に登録されている店(= デモ店)の visit_plans と、それに付いたレビュー(visit_reviews)だけ。
+--   予定を消すと、その予定のレビューも一緒に消える(006 の on delete cascade)。
+--   stores に無い店の予定・レビュー、お気に入り、住所、プロフィール、stores 自体には一切触れない。
 --   (SQL Editor は RLS を素通りするので、利用者本人の予定も消せる。だから対象を stores の店に絞っている)
 --
 -- 【使い方】 全文をそのまま Run すると、ブロックA(今日の予定を全部消す)だけが実行される。
@@ -9,12 +10,13 @@
 --   「そのブロックだけを選択して」Run する(選択しないと、外したものが全部走る)。
 --   実行前後の確認は 005_demo_status.sql。
 --
---   A. 今日の予定を全部消す(基本のリセット)             ← 既定
---   B. 来店の記録だけ戻す(予定は残す。「行ったよ」からやり直したいとき)
+--   A. 今日の予定を全部消す(基本のリセット。レビューも消える) ← 既定
+--   B. 来店の記録とレビューを戻す(予定は残す。「行ったよ」からやり直したいとき)
 --   C. 特定のユーザー(メールアドレス指定)の今日の予定だけ消す
 --   D. デモ店の全期間の予定を全部消す(最終リセット。過去分も消える)
 --   E. デモ用の設定に戻す(認証コード 1234 / 閾値 1)。本番設定(閾値3)に戻す行も
 --   F. 店長ページの URL を作り直す(画面共有・録画に URL が写った後、古い URL を無効にする)
+--   G. レビューだけ消す(来店の記録は残す。レビューの送信からやり直したいとき)
 
 -- ---------------------------------------------------------------------------
 -- A. デモ店の「今日」(日本時間)の予定を全部消す。結果は店ごとの削除件数
@@ -32,9 +34,18 @@ select s.name, count(d.place_id) as deleted_today_plans
  order by s.id;
 
 -- ---------------------------------------------------------------------------
--- B. 来店の記録(visited_at)だけを null に戻す。予定は残る(今日分・デモ店のみ)
+-- B. 来店の記録(visited_at)を null に戻し、その予定のレビューも消す。予定は残る(今日分・デモ店のみ)
+--    (レビューを残すと「来店していないのにレビューがある」状態になるため、一緒に消す)
 -- ---------------------------------------------------------------------------
--- with upd as (
+-- with rev as (
+--   delete from public.visit_reviews r
+--    using public.visit_plans vp
+--    where r.plan_id = vp.id
+--      and vp.place_id in (select place_id from public.stores)
+--      and vp.visit_date = (now() at time zone 'Asia/Tokyo')::date
+--   returning vp.place_id
+-- ),
+-- upd as (
 --   update public.visit_plans vp
 --      set visited_at = null
 --    where vp.place_id in (select place_id from public.stores)
@@ -42,10 +53,10 @@ select s.name, count(d.place_id) as deleted_today_plans
 --      and vp.visited_at is not null
 --   returning vp.place_id
 -- )
--- select s.name, count(u.place_id) as reset_visited
+-- select s.name,
+--        (select count(*) from upd u where u.place_id = s.place_id) as reset_visited,
+--        (select count(*) from rev r where r.place_id = s.place_id) as deleted_reviews
 --   from public.stores s
---   left join upd u on u.place_id = s.place_id
---  group by s.id, s.name
 --  order by s.id;
 
 -- ---------------------------------------------------------------------------
@@ -94,3 +105,22 @@ select s.name, count(d.place_id) as deleted_today_plans
 -- update public.stores
 --    set owner_token = replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')
 -- returning name, '/store/' || owner_token as new_store_page_path;
+
+-- ---------------------------------------------------------------------------
+-- G. デモ店の「今日」の予定に付いたレビューだけ消す。予定と来店の記録は残る
+--    → サイドバーの「レビューを書く」から、もう一度レビューを送れる
+--    過去の分も含めて消したいときは、visit_date の行を消して実行する(友達の実データも消えるので注意)
+-- ---------------------------------------------------------------------------
+-- with del as (
+--   delete from public.visit_reviews r
+--    using public.visit_plans vp
+--    where r.plan_id = vp.id
+--      and vp.place_id in (select place_id from public.stores)
+--      and vp.visit_date = (now() at time zone 'Asia/Tokyo')::date
+--   returning vp.place_id
+-- )
+-- select s.name, count(d.place_id) as deleted_reviews
+--   from public.stores s
+--   left join del d on d.place_id = s.place_id
+--  group by s.id, s.name
+--  order by s.id;

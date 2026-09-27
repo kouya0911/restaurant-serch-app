@@ -94,4 +94,10 @@ export interface VisitPlan {
     visit_date: string; // "YYYY-MM-DD" (date型。Dateに変換せず文字列のまま扱う)
     visited_at: string | null; // 来店認証(次フェーズ)で設定。登録時は null
     created_at: string;
+    review: VisitReview | null; // 来店後のレビュー(予定1件につき1件)。未記入なら null
+}
+
+export interface VisitReview {
+    rating: number; // 1〜5
+    comment: string | null; // ひとこと(最大200文字)。星だけなら null
 }
