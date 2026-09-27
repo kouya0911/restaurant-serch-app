@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import StoreDashboard from "@/components/store/store-dashboard"
 import { getStoreStats } from "@/lib/store/stats"
+import { getStoreReviews } from "@/lib/store/reviews"
 
 // 店長ページ(ログイン不要・秘密URL)。トークンを知っている人だけが開ける。
 export const dynamic = "force-dynamic"
@@ -19,7 +20,7 @@ export default async function StorePage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
-  const result = await getStoreStats(token)
+  const [result, reviews] = await Promise.all([getStoreStats(token), getStoreReviews(token)])
 
   if (!result.ok) {
     return (
@@ -30,5 +31,12 @@ export default async function StorePage({
   }
   if (!result.data) notFound()
 
-  return <StoreDashboard token={token} initial={result.data} />
+  // レビューの初回取得に失敗しても人数の表示は出す(レビュー欄は自動更新で取り直す)
+  return (
+    <StoreDashboard
+      token={token}
+      initial={result.data}
+      initialReviews={reviews.ok ? reviews.data : null}
+    />
+  )
 }
