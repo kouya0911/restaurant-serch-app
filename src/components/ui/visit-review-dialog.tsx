@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import VisitReviewForm from "@/components/ui/visit-review-form"
+import PointsBadge from "@/components/ui/points-badge"
+import { REVIEW_POINTS } from "@/lib/points/visit-points"
 
 interface VisitReviewDialogProps {
   open: boolean
@@ -44,9 +46,10 @@ export default function VisitReviewDialog({
         </DialogHeader>
 
         {reviewed ? (
-          <p className="flex items-center gap-2 font-semibold text-amber-600">
+          <p className="flex flex-wrap items-center gap-2 font-semibold text-amber-600">
             <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
             レビューを送りました。ありがとうございます！
+            <PointsBadge points={REVIEW_POINTS} />
           </p>
         ) : (
           planId != null && (

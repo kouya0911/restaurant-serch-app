@@ -187,6 +187,7 @@ import { formatVisitDateLabel, todayInJst } from "@/lib/calendar/visit-date"
 import { VISIT_PLANS_KEY, fetchVisitPlans, refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
 import VisitVerifyDialog from "@/components/ui/visit-verify-dialog"
 import VisitReviewDialog from "@/components/ui/visit-review-dialog"
+import { calcVisitPoints } from "@/lib/points/visit-points"
 import { Button } from "./button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -231,6 +232,8 @@ export default function Menusheet() {
         .filter((p) => p.visited_at != null && p.review == null)
         .sort((a, b) => b.visit_date.localeCompare(a.visit_date) || b.id - a.id)
         .slice(0, REVIEW_PENDING_LIMIT)
+  // 電気代還元ポイント: 取得済みの予定一覧(過去分も含む全件)から計算する。取得前・エラー時は null(「—」表示)
+  const points = visitPlans && !visitPlansError ? calcVisitPoints(visitPlans) : null
 
   const handleDeletePlan = async (id: number) => {
     if (deletingPlanId !== null) return
@@ -334,6 +337,18 @@ export default function Menusheet() {
                 アカウントを管理する
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* 電気代還元ポイント(来店認証・レビューから計算。保存はしない) */}
+        {user && (
+          <div className="mb-4">
+            <p className="text-sm">
+              電気代還元ポイント{" "}
+              <span className="font-bold tabular-nums">{points ?? "—"}</span>
+              {points != null && <span className="ml-0.5 text-xs text-gray-500">pt</span>}
+            </p>
+            <p className="text-xs text-gray-500">※ 電気代への還元はイメージです</p>
           </div>
         )}
 
