@@ -42,8 +42,9 @@ export async function listVisitPlansAction(): Promise<ActionResult<VisitPlan[]>>
       .from(TABLE)
       .select(COLUMNS)
       .eq("user_id", user.id)
+      // 日付の早い順。同じ日付なら新しく登録した順(登録直後の予定がサイドバーの先頭5件に入るように)
       .order("visit_date", { ascending: true })
-      .order("id", { ascending: true })
+      .order("id", { ascending: false })
 
     if (error) {
       console.error("[listVisitPlansAction] select error:", error.message)

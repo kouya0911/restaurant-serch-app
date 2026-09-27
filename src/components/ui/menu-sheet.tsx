@@ -195,6 +195,8 @@ import LotteryModal from "@/components/ui/lottery-modal"
 import { useLottery } from "@/components/ui/lottery-provider"
 import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
 
+const UPCOMING_LIMIT = 5
+
 export default function Menusheet() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
@@ -208,11 +210,16 @@ export default function Menusheet() {
   const [planDeleteError, setPlanDeleteError] = useState<string | null>(null)
   // 「行ったよ」の認証コード入力ダイアログの対象(null なら閉じている)
   const [verifyTarget, setVerifyTarget] = useState<{ id: number; name: string } | null>(null)
+  // 「これから行く」を全件表示するか(既定は先頭 UPCOMING_LIMIT 件だけ)
+  const [showAllPlans, setShowAllPlans] = useState(false)
 
   // 「これから行く」: 詳細モーダルでの登録/削除は refreshVisitPlans() (= mutate) で再取得される
   const { data: visitPlans, error: visitPlansError } = useSWR(VISIT_PLANS_KEY, fetchVisitPlans)
   const today = todayInJst()
-  const upcomingPlans = (visitPlans ?? []).filter((p) => p.visit_date >= today).slice(0, 5)
+  // 取得エラー中は一覧の代わりにエラー文を出すので、件数も 0 扱いにする(「ほか◯件」を出さない)
+  const allUpcomingPlans = visitPlansError ? [] : (visitPlans ?? []).filter((p) => p.visit_date >= today)
+  const upcomingPlans = showAllPlans ? allUpcomingPlans : allUpcomingPlans.slice(0, UPCOMING_LIMIT)
+  const hiddenPlanCount = allUpcomingPlans.length - upcomingPlans.length
 
   const handleDeletePlan = async (id: number) => {
     if (deletingPlanId !== null) return
@@ -285,7 +292,14 @@ export default function Menusheet() {
   }
 
   return (
-    <Sheet onOpenChange={(open) => { if (!open) setIsLotteryOpen(false) }}>
+    <Sheet
+      onOpenChange={(open) => {
+        if (!open) {
+          setIsLotteryOpen(false)
+          setShowAllPlans(false)
+        }
+      }}
+    >
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon">
           <Menu />
@@ -447,6 +461,24 @@ export default function Menusheet() {
                 )
               })}
             </ul>
+          )}
+          {hiddenPlanCount > 0 && (
+            <Button
+              variant="link"
+              className="mt-1 h-auto p-0 text-xs text-green-600"
+              onClick={() => setShowAllPlans(true)}
+            >
+              ほか{hiddenPlanCount}件
+            </Button>
+          )}
+          {showAllPlans && allUpcomingPlans.length > UPCOMING_LIMIT && (
+            <Button
+              variant="link"
+              className="mt-1 h-auto p-0 text-xs text-gray-500"
+              onClick={() => setShowAllPlans(false)}
+            >
+              たたむ
+            </Button>
           )}
           {planDeleteError && (
             <p role="alert" className="mt-1 text-xs text-destructive">
