@@ -9,9 +9,18 @@ import { revalidatePath } from "next/cache"
 // visit_plans は database.types.ts に未反映(手書き VisitPlan 型で扱う)ため、
 // 既存の favorites と同じく .from("visit_plans" as any) でアクセスする。
 const TABLE = "visit_plans" as any
-const COLUMNS = "id, user_id, place_id, restaurant_name, visit_date, visited_at, created_at"
+// review: 自分のレビュー(visit_reviews, docs/sql/006_visit_reviews.sql)を埋め込む。RLS で自分の分しか見えない
+const COLUMNS =
+  "id, user_id, place_id, restaurant_name, visit_date, visited_at, created_at, review:visit_reviews(rating, comment)"
 const MAX_NAME_LENGTH = 200
 const UNIQUE_VIOLATION = "23505"
+
+// plan_id は unique なので PostgREST は1件(オブジェクト)か null で返すが、
+// 配列で返ってきた場合(1対多と判定された場合)も同じ形にそろえる
+function toVisitPlan(row: any): VisitPlan {
+  const review = Array.isArray(row.review) ? row.review[0] ?? null : row.review ?? null
+  return { ...row, review } as VisitPlan
+}
 
 type ActionResult<T = undefined> =
   | ({ success: true } & (T extends undefined ? {} : { data: T }))
@@ -40,7 +49,7 @@ export async function listVisitPlansAction(): Promise<ActionResult<VisitPlan[]>>
       console.error("[listVisitPlansAction] select error:", error.message)
       return { success: false, message: `予定の取得に失敗しました: ${error.message}` }
     }
-    return { success: true, data: (data ?? []) as unknown as VisitPlan[] }
+    return { success: true, data: (data ?? []).map(toVisitPlan) }
   } catch (err: any) {
     console.error("[listVisitPlansAction] UNEXPECTED CRASH:", err)
     return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
@@ -90,7 +99,7 @@ export async function addVisitPlanAction(input: {
     }
 
     revalidatePath("/calendar")
-    return { success: true, data: data as unknown as VisitPlan }
+    return { success: true, data: toVisitPlan(data) }
   } catch (err: any) {
     console.error("[addVisitPlanAction] UNEXPECTED CRASH:", err)
     return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
@@ -189,6 +198,70 @@ export async function verifyVisitAction(planId: number, code: string): Promise<A
     return { success: false, message }
   } catch (err: any) {
     console.error("[verifyVisitAction] UNEXPECTED CRASH:", err)
+    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+  }
+}
+
+// submit_review() (DB関数, docs/sql/006_visit_reviews.sql) の戻り値 → 利用者向けメッセージ
+const REVIEW_ERROR_MESSAGES: Record<string, string> = {
+  invalid_rating: "星を1〜5で選んでください",
+  too_long: "ひとことは200文字以内で入力してください",
+  not_found: "予定が見つかりませんでした",
+  not_visited: "レビューを書けるのは、来店を認証した予定だけです",
+  already: "この予定にはすでにレビューを書いています",
+}
+const MAX_COMMENT_LENGTH = 200
+
+/**
+ * 来店後のレビュー(星1〜5・ひとこと任意)。「自分の予定か」「来店認証済みか」「1件目か」は
+ * DB関数の中で確かめる(テーブルへの直接の書き込みは DB 側で禁止している)。
+ */
+export async function submitReviewAction(
+  planId: number,
+  rating: number,
+  comment: string | null
+): Promise<ActionResult> {
+  try {
+    if (!Number.isInteger(planId)) return { success: false, message: "IDが正しくありません" }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return { success: false, message: REVIEW_ERROR_MESSAGES.invalid_rating }
+    }
+
+    // 前後の空白・改行を除く。空なら星だけのレビュー。文字数は DB の char_length と同じコードポイント単位
+    const trimmed = (comment ?? "").trim()
+    if ([...trimmed].length > MAX_COMMENT_LENGTH) {
+      return { success: false, message: REVIEW_ERROR_MESSAGES.too_long }
+    }
+
+    const { supabase, user } = await getAuthedUser()
+    if (!user) return { success: false, message: "AUTH_REQUIRED" }
+
+    // submit_review は database.types.ts に未反映のため、verify_visit と同様に型を回避して呼ぶ
+    const { data, error } = await (supabase as any).rpc("submit_review", {
+      p_plan_id: planId,
+      p_rating: rating,
+      p_comment: trimmed || null,
+    })
+
+    if (error) {
+      console.error("[submitReviewAction] rpc error:", error.message)
+      return { success: false, message: `レビューの送信に失敗しました: ${error.message}` }
+    }
+
+    if (data === "ok") {
+      revalidatePath("/calendar")
+      return { success: true }
+    }
+    if (data === "not_authenticated") return { success: false, message: "AUTH_REQUIRED" }
+
+    const message = typeof data === "string" ? REVIEW_ERROR_MESSAGES[data] : undefined
+    if (!message) {
+      console.error("[submitReviewAction] unexpected result:", data)
+      return { success: false, message: "レビューの送信に失敗しました" }
+    }
+    return { success: false, message }
+  } catch (err: any) {
+    console.error("[submitReviewAction] UNEXPECTED CRASH:", err)
     return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
   }
 }
