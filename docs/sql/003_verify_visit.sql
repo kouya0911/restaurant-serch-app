@@ -1,6 +1,7 @@
 -- 003_verify_visit: 「行ったよ」来店認証の関数 (feature/visit-plans 来店認証フェーズ ステップ2)
 -- 実行場所: Supabase Dashboard > SQL Editor。create or replace なので再実行しても良い。
 -- 前提: 002_stores.sql が実行済みであること。
+-- ※ verify_visit は 008_visit_hours.sql で置き換え済み。008 を実行した後にこのファイルを再実行しないこと(古いルールに戻る)。
 --
 -- 【設計】
 -- ・認証コードは stores にあり、利用者(authenticated)は stores を読めない。
