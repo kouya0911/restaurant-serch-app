@@ -15,6 +15,7 @@ import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantAc
 import { PlaceDetailsAll } from "@/types"
 import RouteGuideDialog from "@/components/route-guide/route-guide-dialog"
 import VisitPlanDialog from "@/components/ui/visit-plan-dialog"
+import { VisitCrowdBars } from "@/components/ui/visit-crowd"
 
 interface RestaurantDetailModalProps {
   placeId: string
@@ -152,6 +153,9 @@ export default function RestaurantDetailModal({
                 </ul>
               </div>
             )}
+
+            {/* 今日の時間帯ごとの「行く予定の人数」 */}
+            <VisitCrowdBars placeId={placeId} />
 
             <div className="flex flex-col gap-2 pt-1">
               <Button variant="outline" className="w-full" onClick={() => setShowVisitPlan(true)}>

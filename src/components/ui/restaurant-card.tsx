@@ -100,6 +100,7 @@ import { Restaurant } from "@/types"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
 import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
 import { useLottery } from "@/components/ui/lottery-provider"
+import { VisitCrowdBadges } from "@/components/ui/visit-crowd"
 
 interface RestaurantCardProps {
   restaurant: Restaurant
@@ -254,6 +255,9 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
           </Button>
         </div>
       </div>
+
+      {/* 今の時間帯と次の時間帯の「行く予定の人数」(0人なら何も出ない) */}
+      <VisitCrowdBadges placeId={restaurant.id} />
 
       <RestaurantDetailModal
         placeId={restaurant.id}

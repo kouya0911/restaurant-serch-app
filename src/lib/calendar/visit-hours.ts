@@ -30,6 +30,12 @@ export function visitSlotStartMs(visitDate: string, hour: number): number {
   return Date.UTC(y, m - 1, d, hour) - JST_OFFSET_MS
 }
 
+/** epoch ms → 日本時間の日付 "YYYY-MM-DD" と時(0〜23) */
+export function jstDateAndHour(ms: number): { date: string; hour: number } {
+  const jst = new Date(ms + JST_OFFSET_MS)
+  return { date: jst.toISOString().slice(0, 10), hour: jst.getUTCHours() }
+}
+
 /** 12 → "12時台" / null → "時間未定" */
 export function formatVisitHourLabel(hour: number | null): string {
   return hour == null ? "時間未定" : `${hour}時台`
