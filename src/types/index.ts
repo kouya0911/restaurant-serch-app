@@ -92,6 +92,7 @@ export interface VisitPlan {
     place_id: string;
     restaurant_name: string;
     visit_date: string; // "YYYY-MM-DD" (date型。Dateに変換せず文字列のまま扱う)
+    visit_hour: number | null; // 行く時間帯(日本時間の「〇時台」の〇)。null は「時間未定」(時間帯の導入前に登録した予定)
     visited_at: string | null; // 来店認証(次フェーズ)で設定。登録時は null
     created_at: string;
     review: VisitReview | null; // 来店後のレビュー(予定1件につき1件)。未記入なら null
@@ -100,4 +101,11 @@ export interface VisitPlan {
 export interface VisitReview {
     rating: number; // 1〜5
     comment: string | null; // ひとこと(最大200文字)。星だけなら null
+}
+
+// 混雑表示: 店・時間帯ごとの「行く予定の人数」(visit_plan_counts, docs/sql/010_visit_plan_counts.sql)
+export interface VisitCrowdCount {
+    place_id: string;
+    visit_hour: number; // 日本時間の「〇時台」の〇
+    planned: number; // 行く予定の人数(来店認証の有無は問わない)
 }

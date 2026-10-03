@@ -17,6 +17,7 @@
 --   E. デモ用の設定に戻す(認証コード 1234 / 閾値 1)。本番設定(閾値3)に戻す行も
 --   F. 店長ページの URL を作り直す(画面共有・録画に URL が写った後、古い URL を無効にする)
 --   G. レビューだけ消す(来店の記録は残す。レビューの送信からやり直したいとき)
+--   H. デモ用: 今日の未認証の予定を「今の時台」に移し、宣言時刻を2時間前にする(すぐ「行ったよ」できるように)
 
 -- ---------------------------------------------------------------------------
 -- A. デモ店の「今日」(日本時間)の予定を全部消す。結果は店ごとの削除件数
@@ -122,5 +123,29 @@ select s.name, count(d.place_id) as deleted_today_plans
 -- select s.name, count(d.place_id) as deleted_reviews
 --   from public.stores s
 --   left join del d on d.place_id = s.place_id
+--  group by s.id, s.name
+--  order by s.id;
+
+-- ---------------------------------------------------------------------------
+-- H. デモ用: デモ店の「今日」の未認証の予定を、今の時台(日本時間)に移し、最初の宣言を2時間前にする
+--    008 以降、「行ったよ」は「時間帯の始まりの1時間以上前に宣言」かつ「始まりの15分前〜3時間後」しか通らない。
+--    本番中に登録した予定はこの条件を満たせないので、デモ開始前にスマホAで今日の予定を登録し、このブロックで
+--    すぐ認証できる状態にしておく(3時間は認証できる)。時間未定の古い予定も今の時台になる。
+--    ※ 友達の今日の予定(デモ店・未認証)も一緒に動く。自分の予定だけにするなら、最後の and の行のコメントを外して
+--      メールアドレスを書き換える。
+-- ---------------------------------------------------------------------------
+-- with upd as (
+--   update public.visit_plans vp
+--      set visit_hour = extract(hour from now() at time zone 'Asia/Tokyo')::smallint,
+--          created_at = least(vp.created_at, date_trunc('hour', now()) - interval '2 hours')
+--    where vp.place_id in (select place_id from public.stores)
+--      and vp.visit_date = (now() at time zone 'Asia/Tokyo')::date
+--      and vp.visited_at is null
+--      -- and vp.user_id = (select id from auth.users where email = 'ここにメールアドレス')
+--   returning vp.place_id, vp.visit_hour
+-- )
+-- select s.name, count(u.place_id) as moved_plans, max(u.visit_hour) as visit_hour
+--   from public.stores s
+--   left join upd u on u.place_id = s.place_id
 --  group by s.id, s.name
 --  order by s.id;

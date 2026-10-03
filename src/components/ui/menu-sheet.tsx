@@ -180,11 +180,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Check, Menu, Star, Ticket, TicketCheck, Trash2 } from "lucide-react"
+import { Check, Menu, Pencil, Star, Ticket, TicketCheck, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { deleteVisitPlanAction } from "@/app/(private)/actions/visitPlanActions"
 import { formatVisitDateLabel, todayInJst } from "@/lib/calendar/visit-date"
+import {
+  formatJstClock,
+  formatVisitHourLabel,
+  getVerifyState,
+  verifyWindow,
+} from "@/lib/calendar/visit-hours"
 import { VISIT_PLANS_KEY, fetchVisitPlans, refreshVisitPlans } from "@/lib/calendar/visit-plans-swr"
+import { VisitPlan } from "@/types"
+import VisitPlanDialog from "@/components/ui/visit-plan-dialog"
 import VisitVerifyDialog from "@/components/ui/visit-verify-dialog"
 import VisitReviewDialog from "@/components/ui/visit-review-dialog"
 import { calcVisitPoints } from "@/lib/points/visit-points"
@@ -199,6 +207,8 @@ import RestaurantDetailModal from "@/components/ui/restaurant-detail-modal"
 
 const UPCOMING_LIMIT = 5
 const REVIEW_PENDING_LIMIT = 3
+// 「行ったよ」ボタンの出し分け(認証できる時間か)を判定し直す間隔
+const NOW_TICK_MS = 60 * 1000
 
 export default function Menusheet() {
   const supabase = createClient()
@@ -217,12 +227,26 @@ export default function Menusheet() {
   const [reviewTarget, setReviewTarget] = useState<{ id: number; name: string } | null>(null)
   // 「これから行く」を全件表示するか(既定は先頭 UPCOMING_LIMIT 件だけ)
   const [showAllPlans, setShowAllPlans] = useState(false)
+  // 日付・時間帯を変更する予定。閉じるアニメーション中も表示が変わらないよう、開閉は別に持つ
+  const [editTarget, setEditTarget] = useState<VisitPlan | null>(null)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  // 「行ったよ」を押せる時間かの判定に使う「今」。1分ごとに更新する
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), NOW_TICK_MS)
+    return () => clearInterval(timer)
+  }, [])
 
   // 「これから行く」: 詳細モーダルでの登録/削除は refreshVisitPlans() (= mutate) で再取得される
   const { data: visitPlans, error: visitPlansError } = useSWR(VISIT_PLANS_KEY, fetchVisitPlans)
   const today = todayInJst()
+  // 今日以降の予定に加えて、日付が変わっても来店認証の時間が残っている予定(前日の23時台など)も出す
+  const isUpcoming = (p: VisitPlan) =>
+    p.visit_date >= today ||
+    (p.visit_hour != null && p.visited_at == null && nowMs <= verifyWindow(p.visit_date, p.visit_hour).toMs)
   // 取得エラー中は一覧の代わりにエラー文を出すので、件数も 0 扱いにする(「ほか◯件」を出さない)
-  const allUpcomingPlans = visitPlansError ? [] : (visitPlans ?? []).filter((p) => p.visit_date >= today)
+  const allUpcomingPlans = visitPlansError ? [] : (visitPlans ?? []).filter(isUpcoming)
   const upcomingPlans = showAllPlans ? allUpcomingPlans : allUpcomingPlans.slice(0, UPCOMING_LIMIT)
   const hiddenPlanCount = allUpcomingPlans.length - upcomingPlans.length
   // 「レビューを書く」: 来店済みでまだレビューのない予定(過去の日付も含む)を、来店日の新しい順に数件
@@ -432,7 +456,8 @@ export default function Menusheet() {
             <ul className="space-y-2">
               {upcomingPlans.map((plan) => {
                 const isVisited = plan.visited_at != null
-                const canVerify = !isVisited && plan.visit_date === today
+                // 「行ったよ」の出し分け。認証できるかの最終判断は DB(verify_visit)が行う
+                const verifyState = getVerifyState(plan, nowMs, today)
                 return (
                   <li
                     key={plan.id}
@@ -445,23 +470,39 @@ export default function Menusheet() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate">
                         {formatVisitDateLabel(plan.visit_date)}
+                        <span className="mr-1 text-xs text-gray-500">{formatVisitHourLabel(plan.visit_hour)}</span>
                         {plan.restaurant_name}
                       </span>
-                      {/* 来店済みの予定は削除できない(DB側でも拒否される) */}
+                      {/* 来店済みの予定は変更・削除できない(DB側でも拒否される) */}
                       {!isVisited && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeletePlan(plan.id)
-                          }}
-                          disabled={deletingPlanId === plan.id}
-                          title="予定を削除"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
-                        </Button>
+                        <div className="flex shrink-0 items-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditTarget(plan)
+                              setIsEditOpen(true)
+                            }}
+                            title="日付・時間帯を変更"
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-gray-400 hover:text-gray-700" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeletePlan(plan.id)
+                            }}
+                            disabled={deletingPlanId === plan.id}
+                            title="予定を削除"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                     {isVisited && (
@@ -476,7 +517,7 @@ export default function Menusheet() {
                         )}
                       </p>
                     )}
-                    {canVerify && (
+                    {verifyState.kind === "open" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -488,6 +529,23 @@ export default function Menusheet() {
                       >
                         行ったよ
                       </Button>
+                    )}
+                    {/* 当日でまだ時間前なら、「行ったよ」を押せる時間を添える */}
+                    {verifyState.kind === "early" && plan.visit_date === today && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatJstClock(verifyState.fromMs)}〜{formatJstClock(verifyState.toMs)} に「行ったよ」できます
+                      </p>
+                    )}
+                    {verifyState.kind === "ineligible" && (
+                      <p
+                        className="mt-1 text-xs text-amber-700"
+                        title="来店認証は、最初に宣言した時刻が予定の時間帯の始まりの1時間以上前のときだけできます"
+                      >
+                        この時間だと来店認証ができません
+                      </p>
+                    )}
+                    {verifyState.kind === "expired" && (
+                      <p className="mt-1 text-xs text-gray-500">来店認証の時間を過ぎました</p>
                     )}
                   </li>
                 )
@@ -568,6 +626,14 @@ export default function Menusheet() {
         <LotteryModal
           isOpen={isLotteryOpen}
           onClose={() => setIsLotteryOpen(false)}
+        />
+
+        <VisitPlanDialog
+          open={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          placeId={editTarget?.place_id ?? ""}
+          restaurantName={editTarget?.restaurant_name}
+          plan={editTarget}
         />
 
         <VisitVerifyDialog
