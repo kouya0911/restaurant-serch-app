@@ -10,11 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { CalendarPlus, Check, Copy, ExternalLink, LoaderCircle, MapPin, Route } from "lucide-react"
+import { CalendarPlus, Check, Copy, ExternalLink, LoaderCircle, MapPin } from "lucide-react"
 import { getRestaurantDetailsAction } from "@/app/(private)/actions/restaurantActions"
 import { PlaceDetailsAll } from "@/types"
-import RouteGuideDialog from "@/components/route-guide/route-guide-dialog"
 import VisitPlanDialog from "@/components/ui/visit-plan-dialog"
+import GoogleMapsAttribution from "@/components/ui/google-maps-attribution"
 import { VisitCrowdBars } from "@/components/ui/visit-crowd"
 
 interface RestaurantDetailModalProps {
@@ -52,7 +52,6 @@ export default function RestaurantDetailModal({
   const [hasError, setHasError] = useState(false)
   const [details, setDetails] = useState<PlaceDetailsAll | null>(null)
   const [copied, setCopied] = useState(false)
-  const [showRouteGuide, setShowRouteGuide] = useState(false)
   const [showVisitPlan, setShowVisitPlan] = useState(false)
 
   const handleCopy = async () => {
@@ -95,11 +94,10 @@ export default function RestaurantDetailModal({
   const priceInfo = formatPriceLevel(details?.priceLevel)
   const openNow = details?.regularOpeningHours?.openNow
   const weekdayDescriptions = details?.regularOpeningHours?.weekdayDescriptions
-  const location = details?.location
 
   return (
     <>
-    <Dialog open={isOpen && !showRouteGuide && !showVisitPlan} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={isOpen && !showVisitPlan} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{restaurantName ?? "レストラン詳細"}</DialogTitle>
@@ -198,18 +196,9 @@ export default function RestaurantDetailModal({
                   </>
                 )}
               </Button>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={location?.latitude == null || location?.longitude == null}
-                title={location?.latitude == null || location?.longitude == null ? "座標情報を取得できませんでした" : undefined}
-                onClick={() => setShowRouteGuide(true)}
-              >
-                <Route className="h-4 w-4" />
-                ドコいく道案内
-              </Button>
             </div>
+
+            <GoogleMapsAttribution />
           </div>
         )}
 
@@ -224,14 +213,6 @@ export default function RestaurantDetailModal({
       placeId={placeId}
       restaurantName={restaurantName}
     />
-    {location?.latitude != null && location?.longitude != null && (
-      <RouteGuideDialog
-        open={showRouteGuide}
-        onClose={() => setShowRouteGuide(false)}
-        goal={{ lat: location.latitude, lng: location.longitude }}
-        goalName={restaurantName}
-      />
-    )}
     </>
   )
 }

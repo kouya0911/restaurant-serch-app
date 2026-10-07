@@ -35,7 +35,7 @@ interface VisitPlanDialogProps {
 // 時間帯ボタンの「すでに始まったか」を判定し直す間隔
 const NOW_TICK_MS = 30 * 1000
 
-// 詳細モーダルとは重ねず、詳細モーダル側が開閉を切り替える(道案内ダイアログと同じ方式)。
+// 詳細モーダルとは重ねず、詳細モーダル側が開閉を切り替える。
 // サイドバーからは plan を渡して「予定の変更」に使う。
 export default function VisitPlanDialog({
   open,

@@ -17,7 +17,7 @@
 
 - [ ] **デプロイ先を決める**。スマホからアクセスできる URL が必要（`localhost` はスマホから開けない）。
   - このブランチ（`feature/visit-plans`）が本番/プレビューにデプロイされているか、Vercel で確認する。
-  - Vercel の環境変数（`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY` など）が設定済みか。
+  - Vercel の環境変数（`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GOOGLE_API_KEY` など）が設定済みか。
   - Supabase の Authentication > URL Configuration に、デモで使う URL（プレビューURLは変わる）が Redirect URLs として許可されているか。Google ログインが通らないと何も始まらない。
   - プレビューデプロイで Vercel の「Deployment Protection」が有効だと、ログインしていない端末で店長ページが開けないことがある。
   - ※ これらは私の側では確認できていない。必ず事前に実機で通しリハーサルをして確かめる。

@@ -164,6 +164,7 @@ import { deleteAddressAction, selectAddressAction, selectSuggestionAction } from
 import useSWR from "swr";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import GoogleMapsAttribution from "./google-maps-attribution";
 import { useRouter } from "next/navigation";
 
 interface AddressResponse {
@@ -340,6 +341,8 @@ export default function AddressModal() {
                     </div>
                   </CommandItem>
                 ))}
+
+                {!isLoading && suggestions.length > 0 && <GoogleMapsAttribution className="px-3 py-2" />}
               </>
             ) : (
               // saved addresses (SWR)
