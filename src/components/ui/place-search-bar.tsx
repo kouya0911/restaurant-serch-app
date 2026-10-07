@@ -10,6 +10,7 @@ import {
 import { RestaurantSuggestion } from "@/types";
 import { LoaderCircle, MapPin, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import GoogleMapsAttribution from "./google-maps-attribution";
 
 import { useState, useEffect, useRef } from "react";
 import { useDebouncedCallback } from 'use-debounce';
@@ -137,6 +138,7 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
                                 <p>{suggestion.placeName}</p>
                             </CommandItem>
                         ))}
+                        {suggestions.length > 0 && <GoogleMapsAttribution className="px-3 py-2" />}
                     </CommandList>
                 </div>
             )}

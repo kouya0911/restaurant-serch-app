@@ -5,6 +5,7 @@ import { fetchLocation, fetchRamenRestaurants } from "@/lib/restaurants/api";
 import { fetchRestaurants } from "@/lib/restaurants/api";
 import RestaurantList from "@/components/ui/restaurant-list";
 import Categories from "@/components/ui/categories";
+import GoogleMapsAttribution from "@/components/ui/google-maps-attribution";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export default async function Home() {
               <RestaurantCard key={index} restaurant={restaurant} />
             ))}
           </CarouselContainer>
+          <GoogleMapsAttribution className="mt-2" />
         </Section>
       ) : (
         <p>近くにレストランが見つかりませんでした。</p>
@@ -42,6 +44,7 @@ export default async function Home() {
               <RestaurantCard key={index} restaurant={restaurant} />
             ))}
           </CarouselContainer>
+          <GoogleMapsAttribution className="mt-2" />
         </Section>
       ) : (
         <p>近くにラーメン屋が見つかりませんでした。</p>
