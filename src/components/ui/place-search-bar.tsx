@@ -40,7 +40,13 @@ export default function PlaceSearchBar({ lat, Ing }: PlaceSearchBarProps) {
             // 重複リクエスト防止
             setIsLoading(true);
             try {
-                const response = await fetch(`/api/restaurant/autocomplete?input=${inputText}&sessionToken=${sessionToken}&lat=${lat}&Ing=${Ing}`);
+                const params = new URLSearchParams({
+                    input: inputText,
+                    sessionToken,
+                    lat: String(lat),
+                    Ing: String(Ing),
+                });
+                const response = await fetch(`/api/restaurant/autocomplete?${params}`);
                 const data = await response.json()
 
                 if (!response.ok || !Array.isArray(data)) {

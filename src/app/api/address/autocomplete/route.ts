@@ -80,6 +80,9 @@
 import { AddressSuggestion, GooglePlacesAutocompleteAPIResponse } from "@/types";
 import { NextRequest, NextResponse } from "next/server";
 
+// 画面に返すエラー文。Google のエラー本文などの詳細はサーバーのログ(console.error)にだけ残す
+const ADDRESS_SEARCH_ERROR = "住所を検索できませんでした";
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -99,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     if (!apikey) {
       console.error("Missing GOOGLE_API_KEY env var");
-      return NextResponse.json({ error: "サーバー設定エラー: APIキーがありません" }, { status: 500 });
+      return NextResponse.json({ error: ADDRESS_SEARCH_ERROR }, { status: 500 });
     }
 
     const headers = {
@@ -133,7 +136,7 @@ export async function GET(request: NextRequest) {
       const text = await response.text();
       console.error("Google Places autocomplete error:", response.status, text);
       // クライアントには簡潔に返す
-      return NextResponse.json({ error: "Google API error", status: response.status, detail: text }, { status: 502 });
+      return NextResponse.json({ error: ADDRESS_SEARCH_ERROR }, { status: 502 });
     }
 
     // content-type をチェックして JSON かどうか確認
@@ -143,7 +146,7 @@ export async function GET(request: NextRequest) {
     if (!contentType.includes("application/json")) {
       console.warn("Google returned non-JSON response:", contentType, bodyText.slice(0, 500));
       // ここでもクライアント向けにはわかりやすく返す
-      return NextResponse.json({ error: "Google returned non-json", detail: bodyText }, { status: 502 });
+      return NextResponse.json({ error: ADDRESS_SEARCH_ERROR }, { status: 502 });
     }
 
     // JSON パース
@@ -164,6 +167,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(results);
   } catch (error) {
     console.error("Unexpected error in autocomplete route:", error);
-    return NextResponse.json({ error: "unexpected error", detail: String(error) }, { status: 500 });
+    return NextResponse.json({ error: ADDRESS_SEARCH_ERROR }, { status: 500 });
   }
 }

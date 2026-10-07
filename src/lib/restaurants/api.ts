@@ -290,6 +290,8 @@ import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { MOCK_RESTAURANTS } from "./mock-data";
 
+// 画面に出すエラー文。Google やサーバー設定の詳細はサーバーのログ(console.error)にだけ残す
+const RESTAURANT_FETCH_ERROR = "お店の情報を取得できませんでした。少し時間をおいて再読み込みしてください。";
 
 // 近くのレストラン
 async function safeFetchJson(url: string, opts: RequestInit) {
@@ -343,7 +345,7 @@ export async function fetchRestaurants(lat: number, Ing: number) {
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
     console.error("[fetchRestaurants] Missing GOOGLE_API_KEY");
-    return { error: "Server configuration error: missing API key" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 
   const headers = {
@@ -389,7 +391,7 @@ export async function fetchRestaurants(lat: number, Ing: number) {
     return { data: Restaurants };
   } catch (err: any) {
     console.error("[fetchRestaurants] error:", err.message || err);
-    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 }
 
@@ -403,7 +405,7 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
     console.error("[fetchRamenRestaurants] Missing GOOGLE_API_KEY");
-    return { error: "Server configuration error: missing API key" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 
   const headers = {
@@ -439,7 +441,7 @@ export async function fetchRamenRestaurants(lat: number, Ing: number) {
     return { data: RamenRestaurants };
   } catch (err: any) {
     console.error("[fetchRamenRestaurants] error:", err.message || err);
-    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 }
 
@@ -452,7 +454,7 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
     console.error("[fetchCategoryRestaurants] Missing GOOGLE_API_KEY");
-    return { error: "Server configuration error: missing API key" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 
   const headers = {
@@ -488,7 +490,7 @@ export async function fetchCategoryRestaurants(category: string, lat: number, In
     return { data: categoryRestaurants };
   } catch (err: any) {
     console.error("[fetchCategoryRestaurants] error:", err.message || err);
-    return { error: `Nearby Search API error: ${err.message || "Unknown error"}` };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 }
 
@@ -501,7 +503,7 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
     console.error("[fetchRestaurantsByKeyword] Missing GOOGLE_API_KEY");
-    return { error: "Server configuration error: missing API key" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 
   const headers = {
@@ -537,7 +539,7 @@ export async function fetchRestaurantsByKeyword(query: string, lat: number, Ing:
     return { data: restaurants };
   } catch (err: any) {
     console.error("[fetchRestaurantsByKeyword] error:", err.message || err);
-    return { error: `Text Search request error: ${err.message || "Unknown error"}` };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 }
 
@@ -560,7 +562,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
   const apikey = process.env.GOOGLE_API_KEY;
   if (!apikey) {
     console.error("[getPlaceDetails] Missing GOOGLE_API_KEY");
-    return { error: "Server configuration error: missing API key" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 
   const headers = {
@@ -590,7 +592,7 @@ export async function getPlaceDetails(placeId: string, fields: string[], session
     return { data: results };
   } catch (err) {
     console.error("[getPlaceDetails] error:", err);
-    return { error: "Place details request error" };
+    return { error: RESTAURANT_FETCH_ERROR };
   }
 }
 

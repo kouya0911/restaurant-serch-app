@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
 
         const apikey = process.env.GOOGLE_API_KEY
         if (!apikey) {
-            return NextResponse.json({ error: "APIキーが設定されていません。" }, { status: 500 });
+            console.error("[restaurant autocomplete] Missing GOOGLE_API_KEY env var");
+            return NextResponse.json({ error: "レストランを検索できませんでした" }, { status: 500 });
         }
         const header = {
             "Content-Type": "application/json",
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error("[restaurant autocomplete] Google API error:", response.status, errorText)
-            return NextResponse.json({ error: `Autocomplete request error: ${response.status}` }, { status: 502 });
+            return NextResponse.json({ error: "レストランを検索できませんでした" }, { status: 502 });
         };
 
         const data: GooglePlacesAutocompleteAPIResponse = await response.json();
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(results)
     } catch (error) {
         console.error("[restaurant autocomplete] unexpected error:", error)
-        return NextResponse.json({ error: "unexpected error" }, { status: 500 })
+        return NextResponse.json({ error: "レストランを検索できませんでした" }, { status: 500 })
     }
 }
 
