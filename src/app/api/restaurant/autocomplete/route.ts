@@ -68,9 +68,9 @@ export async function GET(request: NextRequest) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error(errorData)
-            return { error: `Autocomplete request error: ${response.status}` };
+            const errorText = await response.text();
+            console.error("[restaurant autocomplete] Google API error:", response.status, errorText)
+            return NextResponse.json({ error: `Autocomplete request error: ${response.status}` }, { status: 502 });
         };
 
         const data: GooglePlacesAutocompleteAPIResponse = await response.json();
@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(results)
     } catch (error) {
-        return { error: "unexpected error" }
+        console.error("[restaurant autocomplete] unexpected error:", error)
+        return NextResponse.json({ error: "unexpected error" }, { status: 500 })
     }
 }
 
