@@ -16,6 +16,8 @@ const COLUMNS =
 const MAX_NAME_LENGTH = 200
 const UNIQUE_VIOLATION = "23505"
 const PERMISSION_DENIED = "42501"
+// 画面に出すエラー文。DB のエラー文などの詳細はサーバーのログ(console.error)にだけ残す
+const UNEXPECTED_ERROR = "予期せぬエラーが発生しました。もう一度お試しください。"
 
 // plan_id は unique なので PostgREST は1件(オブジェクト)か null で返すが、
 // 配列で返ってきた場合(1対多と判定された場合)も同じ形にそろえる
@@ -51,12 +53,12 @@ export async function listVisitPlansAction(): Promise<ActionResult<VisitPlan[]>>
 
     if (error) {
       console.error("[listVisitPlansAction] select error:", error.message)
-      return { success: false, message: `予定の取得に失敗しました: ${error.message}` }
+      return { success: false, message: "予定の取得に失敗しました" }
     }
     return { success: true, data: (data ?? []).map(toVisitPlan) }
   } catch (err: any) {
     console.error("[listVisitPlansAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -106,14 +108,14 @@ export async function addVisitPlanAction(input: {
         return { success: false, message: "この店はその日にすでに登録されています" }
       }
       console.error("[addVisitPlanAction] insert error:", error?.message)
-      return { success: false, message: `予定の登録に失敗しました: ${error?.message || "unknown"}` }
+      return { success: false, message: "予定の登録に失敗しました" }
     }
 
     revalidatePath("/calendar")
     return { success: true, data: toVisitPlan(data) }
   } catch (err: any) {
     console.error("[addVisitPlanAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -134,7 +136,7 @@ export async function deleteVisitPlanAction(id: number): Promise<ActionResult> {
 
     if (error) {
       console.error("[deleteVisitPlanAction] delete error:", error.message)
-      return { success: false, message: `予定の削除に失敗しました: ${error.message}` }
+      return { success: false, message: "予定の削除に失敗しました" }
     }
     if (!data || data.length === 0) {
       // 0行の理由は「存在しない」か「来店認証済み(RLSで削除不可)」。後者なら専用メッセージにする
@@ -154,7 +156,7 @@ export async function deleteVisitPlanAction(id: number): Promise<ActionResult> {
     return { success: true }
   } catch (err: any) {
     console.error("[deleteVisitPlanAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -194,7 +196,7 @@ export async function updateVisitPlanAction(input: {
 
     if (error) {
       console.error("[updateVisitPlanAction] rpc error:", error.message)
-      return { success: false, message: `予定の変更に失敗しました: ${error.message}` }
+      return { success: false, message: "予定の変更に失敗しました" }
     }
     if (data === "not_authenticated") return { success: false, message: "AUTH_REQUIRED" }
     if (data !== "ok") {
@@ -222,7 +224,7 @@ export async function updateVisitPlanAction(input: {
     return { success: true, data: toVisitPlan(row) }
   } catch (err: any) {
     console.error("[updateVisitPlanAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -263,7 +265,7 @@ export async function verifyVisitAction(planId: number, code: string): Promise<A
 
     if (error) {
       console.error("[verifyVisitAction] rpc error:", error.message)
-      return { success: false, message: `来店の認証に失敗しました: ${error.message}` }
+      return { success: false, message: "来店の認証に失敗しました" }
     }
 
     if (data === "ok") {
@@ -280,7 +282,7 @@ export async function verifyVisitAction(planId: number, code: string): Promise<A
     return { success: false, message }
   } catch (err: any) {
     console.error("[verifyVisitAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -327,7 +329,7 @@ export async function submitReviewAction(
 
     if (error) {
       console.error("[submitReviewAction] rpc error:", error.message)
-      return { success: false, message: `レビューの送信に失敗しました: ${error.message}` }
+      return { success: false, message: "レビューの送信に失敗しました" }
     }
 
     if (data === "ok") {
@@ -344,7 +346,7 @@ export async function submitReviewAction(
     return { success: false, message }
   } catch (err: any) {
     console.error("[submitReviewAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }
 
@@ -379,11 +381,11 @@ export async function getVisitCrowdAction(
     if (error) {
       if (error.code === PERMISSION_DENIED) return { success: true, data: [] }
       console.error("[getVisitCrowdAction] rpc error:", error.message)
-      return { success: false, message: `混雑の取得に失敗しました: ${error.message}` }
+      return { success: false, message: "混雑の取得に失敗しました" }
     }
     return { success: true, data: (data ?? []) as VisitCrowdCount[] }
   } catch (err: any) {
     console.error("[getVisitCrowdAction] UNEXPECTED CRASH:", err)
-    return { success: false, message: `予期せぬエラー: ${err.message || "Unknown"}` }
+    return { success: false, message: UNEXPECTED_ERROR }
   }
 }

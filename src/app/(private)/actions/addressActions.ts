@@ -6,10 +6,24 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
+// 画面に出すエラー文。DB のエラー文などの詳細はサーバーのログ(console.error)にだけ残す
+const SAVE_ERROR = "住所を保存できませんでした。もう一度お試しください。";
+const SELECT_ERROR = "住所を選択できませんでした。もう一度お試しください。";
+const DELETE_ERROR = "住所を削除できませんでした。もう一度お試しください。";
+
 export async function selectSuggestionAction(suggestion: AddressSuggestion, sessionToken: string) {
   try {
     const supabase = await createClient();
     console.log(`[selectSuggestionAction] Starting for placeId: ${suggestion.placeId}`);
+
+    // Google(有料)を呼ぶ前にログインを確かめる
+    const { data, error: userError } = await supabase.auth.getUser();
+    const user = data?.user;
+
+    if (userError || !user) {
+      console.error("[selectSuggestionAction] Auth error:", userError?.message);
+      return { success: false, message: "AUTH_REQUIRED" };
+    }
 
     const { data: locationData, error: detailsError } = await getPlaceDetails(
       suggestion.placeId,
@@ -19,14 +33,6 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
     if (detailsError || !locationData || !locationData.location) {
       console.error("[selectSuggestionAction] getPlaceDetails error:", detailsError, locationData);
       return { success: false, message: "住所情報を取得できませんでした" };
-    }
-
-    const { data, error: userError } = await supabase.auth.getUser();
-    const user = data?.user;
-
-    if (userError || !user) {
-      console.error("[selectSuggestionAction] Auth error:", userError?.message);
-      return { success: false, message: "AUTH_REQUIRED" };
     }
 
     const lat = locationData.location.latitude;
@@ -48,7 +54,7 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
 
     if (inserterror || !newAddress) {
       console.error("[selectSuggestionAction] Address insert error:", inserterror?.message);
-      return { success: false, message: `住所保存失敗: ${inserterror?.message || 'unknown'}` };
+      return { success: false, message: SAVE_ERROR };
     }
 
     console.log(`[selectSuggestionAction] Upserting profile user_id: ${user.id}, address_id: ${newAddress.id}`);
@@ -59,14 +65,14 @@ export async function selectSuggestionAction(suggestion: AddressSuggestion, sess
 
     if (updateError) {
       console.error("[selectSuggestionAction] Profile upsert error:", updateError.message);
-      return { success: false, message: `プロフィール更新失敗: ${updateError.message}` };
+      return { success: false, message: SAVE_ERROR };
     }
 
     revalidatePath("/", "layout");
     return { success: true };
   } catch (err: any) {
     console.error("[selectSuggestionAction] UNEXPECTED CRASH:", err);
-    return { success: false, message: `予期せぬエラー: ${err.message || 'Unknown'}` };
+    return { success: false, message: SAVE_ERROR };
   }
 }
 
@@ -108,14 +114,14 @@ export async function selectAddressAction(addressId: number) {
 
     if (updateError) {
       console.error("[selectAddressAction] Profile upsert error:", updateError.message);
-      return { success: false, message: `プロフィール更新失敗: ${updateError.message}` };
+      return { success: false, message: SELECT_ERROR };
     }
 
     revalidatePath("/", "layout");
     return { success: true };
   } catch (err: any) {
     console.error("[selectAddressAction] UNEXPECTED CRASH:", err);
-    return { success: false, message: `予期せぬエラー: ${err.message || 'Unknown'}` };
+    return { success: false, message: SELECT_ERROR };
   }
 }
 
@@ -138,12 +144,13 @@ export async function deleteAddressAction(addressId: number) {
 
     if (error) {
       console.error("[deleteAddressAction] delete error:", error.message);
-      return { success: false, message: error.message };
+      return { success: false, message: DELETE_ERROR };
     }
 
     revalidatePath("/", "layout");
     return { success: true };
   } catch (err: any) {
-    return { success: false, message: err.message || 'Unknown' };
+    console.error("[deleteAddressAction] UNEXPECTED CRASH:", err);
+    return { success: false, message: DELETE_ERROR };
   }
 }
